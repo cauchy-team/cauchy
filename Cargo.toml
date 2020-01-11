@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+    "cauchy-consensus",
+    "cauchy"
+]
