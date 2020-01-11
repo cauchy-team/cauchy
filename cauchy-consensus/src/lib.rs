@@ -31,23 +31,26 @@ pub fn calculate_winner(entries: &[Entry]) -> Option<usize> {
 }
 
 /// Calculate the winner among all entries
-pub fn calculate_winner_par(entries: &[Entry]) -> Option<usize> {    
+pub fn calculate_winner_par(entries: &[Entry]) -> Option<usize> {
     entries
         .par_iter()
         .enumerate()
         .min_by_key(move |(_, entry_a)| {
-            entries.par_iter().map(|entry_b| {
-                // Calculate Hamming distance
-                let dist = entry_a
-                    .oddsketch
-                    .iter()
-                    .zip(entry_b.oddsketch.iter())
-                    .fold(0, |total, (byte_a, byte_b)| {
-                        total + (byte_a ^ byte_b).count_ones()
-                    });
-                // Weighted distance
-                entry_b.mass * dist
-            }).sum::<u32>()
+            entries
+                .par_iter()
+                .map(|entry_b| {
+                    // Calculate Hamming distance
+                    let dist = entry_a
+                        .oddsketch
+                        .iter()
+                        .zip(entry_b.oddsketch.iter())
+                        .fold(0, |total, (byte_a, byte_b)| {
+                            total + (byte_a ^ byte_b).count_ones()
+                        });
+                    // Weighted distance
+                    entry_b.mass * dist
+                })
+                .sum::<u32>()
         })
         .map(|(index, _)| index)
 }
@@ -92,7 +95,10 @@ mod tests {
 
         entry_b.mass = entry_a.mass + 1;
 
-        assert_eq!(calculate_winner(&[entry_a.clone(), entry_b.clone()]), Some(1));
+        assert_eq!(
+            calculate_winner(&[entry_a.clone(), entry_b.clone()]),
+            Some(1)
+        );
         assert_eq!(calculate_winner_par(&[entry_a, entry_b]), Some(1))
     }
 
