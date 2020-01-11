@@ -117,6 +117,10 @@ name = "cauchy-network"
 version = "0.1.0"
 
 [[package]]
+name = "cauchy-vm"
+version = "0.1.0"
+
+[[package]]
 name = "cc"
 version = "1.0.50"
 source = "registry+https://github.com/rust-lang/crates.io-index"
