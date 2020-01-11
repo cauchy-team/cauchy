@@ -3,5 +3,6 @@
 members = [
     "cauchy-consensus",
     "cauchy-crypto",
-    "cauchy-miner"
+    "cauchy-miner",
+    "cauchy-network"
 ]
