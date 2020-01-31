@@ -1,6 +1,7 @@
 use cauchy_consensus::*;
 use criterion::*;
 use rand::prelude::*;
+use std::collections::HashMap;
 
 fn random() -> Entry {
     let mut rng = rand::thread_rng();
@@ -19,10 +20,10 @@ fn criterion_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("calc winner");
     for n in (64..(128 + 1)).step_by(32) {
         group.throughput(Throughput::Elements(n as u64));
-        let mut entries = Vec::with_capacity(n);
-        for _ in 0..n {
+        let mut entries = HashMap::with_capacity(n);
+        for i in 0..n {
             let entry = random();
-            entries.push(entry);
+            entries.insert(i, entry);
         }
         group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
             b.iter(|| calculate_winner(black_box(&entries)))
@@ -35,10 +36,10 @@ fn criterion_benchmark_par(c: &mut Criterion) {
     let mut group = c.benchmark_group("calc winner par");
     for n in (64..(128 + 1)).step_by(32) {
         group.throughput(Throughput::Elements(n as u64));
-        let mut entries = Vec::with_capacity(n);
-        for _ in 0..n {
+        let mut entries = HashMap::with_capacity(n);
+        for i in 0..n {
             let entry = random();
-            entries.push(entry);
+            entries.insert(i, entry);
         }
         group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
             b.iter(|| calculate_winner_par(black_box(&entries)))
