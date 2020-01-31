@@ -1,0 +1,8 @@
+[package]
+name = "cauchy-arena"
+version = "0.1.0"
+authors = ["Harry Barber <harrybarber@protonmail.com>"]
+edition = "2018"
+
+[dependencies]
+parking_lot = "0.10.0"
