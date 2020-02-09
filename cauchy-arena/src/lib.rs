@@ -34,6 +34,7 @@ pub enum PeerState {
     Polled,
 }
 
+#[derive(Default)]
 pub struct Arena {
     peers: RwLock<HashMap<usize, Arc<RwLock<Peer>>>>,
 }

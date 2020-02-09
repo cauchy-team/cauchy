@@ -5,5 +5,6 @@ members = [
     "cauchy-crypto",
     "cauchy-vm",
     "cauchy-miner",
-    "cauchy-network"
+    "cauchy-network",
+    "cauchy"
 ]
