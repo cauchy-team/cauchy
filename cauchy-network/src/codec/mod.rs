@@ -1,4 +1,5 @@
 mod decoder;
+mod encoder;
 
 use bytes::Bytes;
 
