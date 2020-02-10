@@ -21,12 +21,12 @@ pub struct Transaction {
     binary: Bytes,
 }
 
-pub struct TransactionInv {
-    tx_ids: Vec<Bytes>,
-}
-
 pub struct Transactions {
     txs: Vec<Transaction>,
+}
+
+pub struct TransactionInv {
+    tx_ids: Vec<Bytes>,
 }
 
 pub enum Message {

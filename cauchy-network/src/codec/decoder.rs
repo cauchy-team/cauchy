@@ -1,6 +1,4 @@
 /*
-Decoding states
-
 Future optimizations:
 For code cleanliness, we greedily set our inner state options as soon as we parse them. This
 is a problem because one can immediately set the state to DecodeState::Type when
@@ -18,8 +16,12 @@ use tokio_util::codec::Decoder;
 
 use super::*;
 
+/*
+Decoding states
+*/
+
 #[derive(Default)]
-struct StatusState {
+pub struct StatusState {
     oddsketch_len: Option<u16>,
 }
 
@@ -57,7 +59,7 @@ impl StatusState {
 }
 
 #[derive(Default)]
-struct TransactionState {
+pub struct TransactionState {
     timestamp: Option<u64>,
     binary_len: Option<u32>,
 }
@@ -113,7 +115,7 @@ impl TransactionState {
 }
 
 #[derive(Default)]
-struct TransactionsState {
+pub struct TransactionsState {
     n_txs: Option<u32>,
     read: Option<Vec<Transaction>>,
     tx_state: TransactionState,
@@ -158,7 +160,7 @@ impl TransactionsState {
 }
 
 #[derive(Default)]
-struct TransactionInvState {
+pub struct TransactionInvState {
     n_tx_ids: Option<u32>,
 }
 
@@ -202,7 +204,7 @@ pub enum DecodeState {
 }
 
 /*
-Message codec
+Decoding error
 */
 
 pub enum DecodeError {
@@ -215,6 +217,10 @@ impl From<io::Error> for DecodeError {
         Self::IO(err)
     }
 }
+
+/*
+Implement codec
+*/
 
 impl MessageCodec {
     fn decode_type(&mut self, src: &mut BytesMut) -> Result<Option<()>, DecodeError> {
