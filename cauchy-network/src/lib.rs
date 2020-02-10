@@ -1,4 +1,4 @@
-pub mod messages;
+pub mod codec;
 
 use tokio::io::Error;
 use tokio::net::{TcpListener, ToSocketAddrs};

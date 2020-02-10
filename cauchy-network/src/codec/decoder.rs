@@ -1,44 +1,3 @@
-use std::io;
-
-use bytes::buf::Buf;
-use bytes::{Bytes, BytesMut};
-use tokio_util::codec::{Decoder, Encoder};
-
-const DIGEST_LEN: usize = 32;
-
-/*
-Network messages
-*/
-
-pub struct Status {
-    oddsketch: Bytes,
-    root: Bytes,
-    nonce: u64,
-}
-
-pub struct Transaction {
-    timestamp: u64,
-    binary: Bytes,
-}
-
-pub struct TransactionInv {
-    tx_ids: Vec<Bytes>,
-}
-
-pub struct Transactions {
-    txs: Vec<Transaction>,
-}
-
-pub enum Message {
-    Poll,
-    Status(Status),
-    Reconcile,
-    ReconcileResponse(Transactions),
-    Transaction(Transaction),
-    TransactionInv(TransactionInv),
-    Transactions(Transactions),
-}
-
 /*
 Decoding states
 
@@ -50,6 +9,14 @@ the src buffer is large enough to complete entire parsing in one poll.
 It's therefore possible that this is a few allocations short of perfect on some paths.
 However, it is very possible that the compiler is compiling the problem away.
 */
+
+use std::io;
+
+use bytes::buf::Buf;
+use bytes::BytesMut;
+use tokio_util::codec::Decoder;
+
+use super::*;
 
 #[derive(Default)]
 struct StatusState {
@@ -223,7 +190,7 @@ impl TransactionInvState {
     }
 }
 
-enum DecodeState {
+pub enum DecodeState {
     Type,
     Poll,
     Status(StatusState),
@@ -246,18 +213,6 @@ pub enum DecodeError {
 impl From<io::Error> for DecodeError {
     fn from(err: io::Error) -> Self {
         Self::IO(err)
-    }
-}
-
-pub struct MessageCodec {
-    state: DecodeState,
-}
-
-impl Default for MessageCodec {
-    fn default() -> Self {
-        Self {
-            state: DecodeState::Type,
-        }
     }
 }
 
