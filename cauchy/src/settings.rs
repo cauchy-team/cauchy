@@ -32,7 +32,7 @@ pub struct Settings {
 }
 
 impl Settings {
-    pub fn new<'a>(matches: ArgMatches<'a>) -> Result<Self, ConfigError> {
+    pub fn new(matches: ArgMatches) -> Result<Self, ConfigError> {
         let mut s = Config::new();
 
         // Try get home directory
@@ -45,7 +45,7 @@ impl Settings {
         s.set_default("bind", "127.0.0.1:2332")?;
 
         // Load config from file
-        let mut default_config = home_dir.clone();
+        let mut default_config = home_dir;
         default_config.push(format!("{}/config", FOLDER_DIR));
         let default_config_str = default_config.to_str().unwrap();
         let config_path = matches.value_of("config").unwrap_or(default_config_str);
