@@ -16,7 +16,14 @@ const DEFAULT_CHANNEL_CAPACITY: usize = 1024;
 /// Contains handle to various network resources.
 pub struct NetworkManager {
     send_tcp_stream: mpsc::Sender<TcpStream>,
-    recv_conn: Option<mpsc::Receiver<NewConnection>>,
+    conn_stream: Option<mpsc::Receiver<NewConnection>>,
+}
+
+impl NetworkManager {
+    /// Takes connection receiver. Can only be performed once.
+    pub fn connection_stream(&mut self) -> Option<mpsc::Receiver<NewConnection>> {
+        self.conn_stream.take()
+    }
 }
 
 impl NetworkManager {
@@ -52,14 +59,22 @@ impl<A> NetworkBuilder<A> {
     }
 }
 
-struct NewConnection {
-    addr: SocketAddr,
-    framed: Framed<TcpStream, codec::MessageCodec>,
+pub struct NewConnection {
+    pub addr: SocketAddr,
+    pub framed: Framed<TcpStream, codec::MessageCodec>,
+}
+
+#[derive(Debug)]
+pub enum NetworkError {
+    MissingBindAddr,
+    BindError(io::Error),
 }
 
 impl<A: ToSocketAddrs> NetworkBuilder<A> {
-    pub async fn start(self) -> Result<NetworkManager, io::Error> {
-        let listener = TcpListener::bind(self.bind_addr.expect("missing bind address")).await?;
+    pub async fn start(self) -> Result<NetworkManager, NetworkError> {
+        let listener = TcpListener::bind(self.bind_addr.ok_or(NetworkError::MissingBindAddr)?)
+            .await
+            .map_err(NetworkError::BindError)?;
 
         // This channel allows manual connection to peers
         let (send_tcp_stream, recv_tcp_stream) = mpsc::channel::<TcpStream>(self.channel_capacity);
@@ -73,7 +88,7 @@ impl<A: ToSocketAddrs> NetworkBuilder<A> {
 
         Ok(NetworkManager {
             send_tcp_stream,
-            recv_conn: Some(recv_conn),
+            conn_stream: Some(recv_conn),
         })
     }
 }

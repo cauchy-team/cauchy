@@ -11,5 +11,6 @@ network = { package = 'cauchy-network',  path = '../cauchy-network' }
 clap = { version = "2.33.0", features = ["yaml"] }
 config = "0.10.1"
 dirs = "2.0.2"
+futures = "0.3.4"
 serde = { version = "1.0.104", features = ['derive'] }
 tokio = { version = "0.2.11", features = ['macros'] }
