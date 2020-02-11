@@ -207,6 +207,7 @@ pub enum DecodeState {
 Decoding error
 */
 
+#[derive(Debug)]
 pub enum DecodeError {
     UnexpectedType,
     IO(io::Error),
@@ -235,8 +236,7 @@ impl MessageCodec {
             3 => DecodeState::ReconcileResponse(TransactionsState::default()),
             4 => DecodeState::Transaction(TransactionState::default()),
             5 => DecodeState::TransactionInv(TransactionInvState::default()),
-            6 => DecodeState::Transaction(TransactionState::default()),
-            7 => DecodeState::Transactions(TransactionsState::default()),
+            6 => DecodeState::Transactions(TransactionsState::default()),
             _ => return Err(DecodeError::UnexpectedType),
         };
 

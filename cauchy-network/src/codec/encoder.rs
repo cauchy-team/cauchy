@@ -6,6 +6,7 @@ use tokio_util::codec::Encoder;
 
 use super::*;
 
+#[derive(Debug)]
 pub enum EncodingError {
     IO(io::Error),
 }
@@ -15,8 +16,6 @@ impl From<io::Error> for EncodingError {
         Self::IO(err)
     }
 }
-
-fn encode_tx(tx: Transaction, dst: &mut BytesMut) {}
 
 impl Encoder for MessageCodec {
     type Item = Message;
@@ -34,7 +33,7 @@ impl Encoder for MessageCodec {
                 dst.reserve(1 + 4 + oddsketch_len + DIGEST_LEN + 8);
 
                 dst.put_u8(1);
-                dst.put_u32(oddsketch_len as u32); // This is safe
+                dst.put_u16(oddsketch_len as u16); // This is safe
                 dst.put(status.oddsketch);
                 dst.put(status.root);
                 dst.put_u64(status.nonce);
@@ -74,7 +73,7 @@ impl Encoder for MessageCodec {
                 dst.reserve(1 + 4 + tx_id_size);
 
                 dst.put_u8(5);
-                dst.put_u32(tx_id_size as u32);
+                dst.put_u32(n_tx_ids as u32);
                 for tx_id in tx_inv.tx_ids {
                     dst.put(tx_id);
                 }
