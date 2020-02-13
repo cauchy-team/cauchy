@@ -1,0 +1,15 @@
+[package]
+name = "cauchy-rpc"
+version = "0.1.0"
+authors = ["Harry Barber <harrybarber@protonmail.com>"]
+edition = "2018"
+
+[dependencies]
+futures = "0.3.4"
+http = "0.2.0"
+prost = "0.6.1"
+prost-types = "0.6.1"
+tonic = { version = "0.1.1", features = ["tls", "transport"] }
+
+[build-dependencies]
+tonic-build = "0.1.1"

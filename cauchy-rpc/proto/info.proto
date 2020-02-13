@@ -1,0 +1,18 @@
+syntax = "proto3";
+package info;
+
+import "google/protobuf/empty.proto";
+
+message UptimeResponse {
+    uint64 uptime = 1;
+}
+
+message VersionResponse {
+    string daemon_version = 1;
+}
+
+service Info {
+    rpc Uptime (google.protobuf.Empty) returns (UptimeResponse);
+    rpc Version (google.protobuf.Empty) returns (VersionResponse);
+    rpc Ping (google.protobuf.Empty) returns (google.protobuf.Empty);
+}

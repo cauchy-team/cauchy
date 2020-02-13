@@ -5,4 +5,4 @@ authors = ["Harry Barber <harrybarber@protonmail.com>"]
 edition = "2018"
 
 [dependencies]
-blake3 = "0.1.5"
+blake3 = "0.2.0"

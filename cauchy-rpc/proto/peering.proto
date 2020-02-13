@@ -1,0 +1,12 @@
+syntax = "proto3";
+package peering;
+
+import "google/protobuf/empty.proto";
+
+message ConnectPeerRequest {
+    string address = 1;
+}
+
+service Peering {
+    rpc ConnectPeer (ConnectPeerRequest) returns (google.protobuf.Empty);
+}

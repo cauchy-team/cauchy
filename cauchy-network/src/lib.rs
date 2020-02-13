@@ -9,7 +9,7 @@ use tokio::io;
 use tokio::net::{TcpListener, TcpStream, ToSocketAddrs};
 use tokio_util::codec::Framed;
 
-use codec::Message;
+pub use codec::Message;
 
 const DEFAULT_CHANNEL_CAPACITY: usize = 1024;
 
