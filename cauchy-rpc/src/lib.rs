@@ -39,7 +39,7 @@ impl RPCBuilder {
 }
 
 impl RPCBuilder {
-    async fn start(self, addr: SocketAddr) -> Result<(), TransportError> {
+    pub async fn start(self, addr: SocketAddr) -> Result<(), TransportError> {
         let mut builder = Server::builder().tcp_keepalive(self.keep_alive);
 
         let info_service = self.info_service.expect("info service is required");

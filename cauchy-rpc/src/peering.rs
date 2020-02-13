@@ -2,6 +2,8 @@ pub mod gen {
     tonic::include_proto!("peering");
 }
 
+use std::io;
+
 use futures::{
     channel::{mpsc, oneshot},
     prelude::*,
@@ -12,8 +14,8 @@ use gen::peering_server::{Peering, PeeringServer};
 use gen::*;
 
 pub struct NewPeerMessage {
-    address: String,
-    callback: oneshot::Sender<()>,
+    pub address: String,
+    pub callback: oneshot::Sender<Result<(), io::Error>>,
 }
 
 pub type NewPeerSender = mpsc::Sender<NewPeerMessage>;
@@ -48,7 +50,10 @@ impl Peering for PeeringService {
             .send(new_peer)
             .await
             .expect("new peer channel dropped");
-        result.await;
+        result
+            .await
+            .expect("callback channel dropped")
+            .map_err(|err| Status::unavailable(format!("{}", err)))?;
 
         Ok(Response::new(()))
     }

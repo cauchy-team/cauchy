@@ -10,6 +10,13 @@ pub fn app_init_and_matches<'a>() -> ArgMatches<'a> {
         .version(crate_version!())
         .author(crate_authors!("\n"))
         .arg(
+            Arg::with_name("config")
+                .short("c")
+                .long("config")
+                .help("Sets a custom config file")
+                .takes_value(true),
+        )
+        .arg(
             Arg::with_name("bind")
                 .short("b")
                 .long("bind")
@@ -17,10 +24,9 @@ pub fn app_init_and_matches<'a>() -> ArgMatches<'a> {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("config")
-                .short("c")
-                .long("config")
-                .help("Sets a custom config file")
+            Arg::with_name("rpc-bind")
+                .long("rpc-bind")
+                .help("Sets the RPC bind address")
                 .takes_value(true),
         )
         .get_matches()
@@ -29,6 +35,7 @@ pub fn app_init_and_matches<'a>() -> ArgMatches<'a> {
 #[derive(Debug, Deserialize)]
 pub struct Settings {
     pub bind: String,
+    pub rpc_bind: String,
 }
 
 impl Settings {
@@ -42,7 +49,8 @@ impl Settings {
         };
 
         // Set default settings
-        s.set_default("bind", "127.0.0.1:2332")?;
+        s.set_default("bind", "127.0.0.1:1220")?;
+        s.set_default("rpc_bind", "127.0.0.1:2080")?;
 
         // Load config from file
         let mut default_config = home_dir;
@@ -51,11 +59,13 @@ impl Settings {
         let config_path = matches.value_of("config").unwrap_or(default_config_str);
         s.merge(File::with_name(config_path).required(false))?;
 
-        // Try set bind address from cmd line
+        // Try gather settings from cmd line
         if let Some(bind) = matches.value_of("bind") {
             s.set("bind", bind)?;
         }
-
+        if let Some(rpc_bind) = matches.value_of("rpc-bind") {
+            s.set("rpc_bind", rpc_bind)?;
+        }
         s.try_into()
     }
 }

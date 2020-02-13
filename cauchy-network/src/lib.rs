@@ -24,6 +24,17 @@ impl NetworkManager {
     pub fn connection_stream(&mut self) -> Option<mpsc::Receiver<NewConnection>> {
         self.conn_stream.take()
     }
+
+    /// Create a new connection to peer.
+    pub async fn new_peer(&self, addr: SocketAddr) -> Result<(), io::Error> {
+        let tcp_stream = TcpStream::connect(addr).await?;
+        self.send_tcp_stream
+            .clone()
+            .send(tcp_stream)
+            .await
+            .expect("tcp stream channel dropped");
+        Ok(())
+    }
 }
 
 impl NetworkManager {
