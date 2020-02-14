@@ -25,8 +25,13 @@ impl NetworkManager {
         self.conn_stream.take()
     }
 
+    /// Get socket stream
+    pub fn get_tcp_stream_sender(&self) -> mpsc::Sender<TcpStream> {
+        self.send_tcp_stream.clone()
+    }
+
     /// Create a new connection to peer.
-    pub async fn new_peer(&self, addr: SocketAddr) -> Result<(), io::Error> {
+    pub async fn new_peer(self, addr: SocketAddr) -> Result<(), io::Error> {
         let tcp_stream = TcpStream::connect(addr).await?;
         self.send_tcp_stream
             .clone()

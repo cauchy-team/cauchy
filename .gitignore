@@ -1,4 +1,8 @@
 /target
 **/*.rs.bk
+/cauchy-rpc/example/*_pb2_grpc.py
+/cauchy-rpc/example/*_pb2.py
 
 .vscode/
+
+cauchy-rpc/example/__pycache__/

@@ -3,6 +3,8 @@ pub mod settings;
 use std::sync::Arc;
 
 use futures::{channel::mpsc, prelude::*};
+use std::net::SocketAddr;
+use tokio::net::TcpStream;
 
 use network::NetworkManager;
 use rpc::RPCBuilder;
@@ -40,11 +42,30 @@ async fn main() {
         .peering_service(new_peer_sender);
     let rpc_addr = settings.rpc_bind.parse().expect("malformed rpc address");
     tokio::spawn(rpc.start(rpc_addr));
-    let new_peers = new_peer_recv.for_each(|msg| async {
-        let peer_addr = msg.address.parse().expect("malformed rpc address");
-        let result = network_manager.new_peer(peer_addr).await;
-        msg.callback.send(result);
+    let send_tcp_stream = network_manager.get_tcp_stream_sender();
+    let new_peers = new_peer_recv.for_each(move |msg| {
+        let mut send_tcp_stream_inner = send_tcp_stream.clone();
+        async move {
+            let peer_addr: SocketAddr = msg.address.parse().expect("malformed rpc address");
+            match TcpStream::connect(peer_addr).await {
+                Ok(tcp_stream) => {
+                    send_tcp_stream_inner
+                        .send(tcp_stream)
+                        .await
+                        .expect("tcp stream sender dropped");
+                    msg.callback
+                        .send(Ok(()))
+                        .expect("tcp stream sender dropped");
+                }
+                Err(err) => {
+                    msg.callback
+                        .send(Err(err))
+                        .expect("tcp stream sender dropped");
+                }
+            };
+        }
     });
+    tokio::spawn(new_peers);
 
     while let Some(new_conn) = connection_stream.next().await {
         println!("connected to {}", new_conn.addr);
