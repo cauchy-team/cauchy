@@ -19,8 +19,8 @@ pub fn get_version() -> String {
 type NewConnectionCallback = oneshot::Sender<Result<(), io::Error>>;
 
 pub struct NewConnection {
-    socket: SocketAddr,
-    callback: NewConnectionCallback,
+    pub socket: SocketAddr,
+    pub callback: NewConnectionCallback,
 }
 
 /// Contains handle to various network resources.

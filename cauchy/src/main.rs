@@ -1,10 +1,7 @@
 pub mod settings;
 
-use std::sync::Arc;
-
 use futures::{channel::mpsc, prelude::*};
 use std::net::SocketAddr;
-use tokio::net::TcpStream;
 
 use network::NetworkHandles;
 use rpc::RPCBuilder;
@@ -61,7 +58,7 @@ async fn main() {
     let settings = Settings::new(matches).expect("failed to gather settings");
 
     // Construct arena
-    let arena = Arc::new(arena::Arena::default());
+    // let arena = Arc::new(arena::Arena::default());
 
     // Initialize networking
     let mut network_manager = NetworkHandles::build()
