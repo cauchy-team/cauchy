@@ -6,14 +6,37 @@ use futures::{channel::mpsc, prelude::*};
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 
-use network::NetworkManager;
+use network::NetworkHandles;
 use rpc::RPCBuilder;
 use settings::*;
 
-fn wire_rpc(network_manager: &NetworkManager, addr: String) {
+fn wire_rpc(network_manager: &NetworkHandles, addr: String) {
     const NEW_PEER_CHANNEL_CAPACITY: usize = 256;
 
-    let (new_peer_sender, new_peer_recv) = mpsc::channel(NEW_PEER_CHANNEL_CAPACITY);
+    // Setup connect peer RPC
+    let (connect_sink, connect_stream) =
+        mpsc::channel::<rpc::peering::ConnectMessage>(NEW_PEER_CHANNEL_CAPACITY);
+    let new_connection_sink = network_manager.new_connection_sink();
+    let new_peers = connect_stream.for_each(move |msg| {
+        let mut new_connection_sink = new_connection_sink.clone();
+        async move {
+            let socket: SocketAddr = msg
+                .address
+                .parse()
+                .expect("TODO return error through callback");
+            let new_connection = network::NewConnection {
+                socket,
+                callback: msg.callback,
+            };
+            new_connection_sink
+                .send(new_connection)
+                .await
+                .expect("tcp stream sender dropped");
+        }
+    });
+    tokio::spawn(new_peers);
+
+    // Build RPC
     let rpc = RPCBuilder::default()
         .info_service(
             clap::crate_version!().to_string(),
@@ -24,33 +47,9 @@ fn wire_rpc(network_manager: &NetworkManager, addr: String) {
             miner::get_version(),
             crypto::get_version(),
         )
-        .peering_service(new_peer_sender);
+        .peering_service(connect_sink);
     let rpc_addr = addr.parse().expect("malformed rpc address");
     tokio::spawn(rpc.start(rpc_addr));
-    let send_tcp_stream = network_manager.get_tcp_stream_sender();
-    let new_peers = new_peer_recv.for_each(move |msg| {
-        let mut send_tcp_stream_inner = send_tcp_stream.clone();
-        async move {
-            let peer_addr: SocketAddr = msg.address.parse().expect("malformed rpc address");
-            match TcpStream::connect(peer_addr).await {
-                Ok(tcp_stream) => {
-                    send_tcp_stream_inner
-                        .send(tcp_stream)
-                        .await
-                        .expect("tcp stream sender dropped");
-                    msg.callback
-                        .send(Ok(()))
-                        .expect("tcp stream sender dropped");
-                }
-                Err(err) => {
-                    msg.callback
-                        .send(Err(err))
-                        .expect("tcp stream sender dropped");
-                }
-            };
-        }
-    });
-    tokio::spawn(new_peers);
 }
 
 #[tokio::main]
@@ -65,11 +64,11 @@ async fn main() {
     let arena = Arc::new(arena::Arena::default());
 
     // Initialize networking
-    let mut network_manager = NetworkManager::build()
+    let mut network_manager = NetworkHandles::build()
         .bind(settings.bind)
         .start()
         .await
-        .expect("could not start network manager");
+        .expect("could not start networking");
 
     // Take stream of new connections
     let mut connection_stream = network_manager.connection_stream().unwrap(); // This is safe

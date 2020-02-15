@@ -17,4 +17,5 @@ config = "0.10.1"
 dirs = "2.0.2"
 futures = "0.3.4"
 serde = { version = "1.0.104", features = ['derive'] }
+stream-cancel = "0.5.2"
 tokio = { version = "0.2.11", features = ['macros'] }

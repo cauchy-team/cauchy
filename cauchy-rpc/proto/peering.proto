@@ -3,10 +3,15 @@ package peering;
 
 import "google/protobuf/empty.proto";
 
-message ConnectPeerRequest {
+message ConnectRequest {
+    string address = 1;
+}
+
+message DisconnectRequest {
     string address = 1;
 }
 
 service Peering {
-    rpc ConnectPeer (ConnectPeerRequest) returns (google.protobuf.Empty);
+    rpc ConnectPeer (ConnectRequest) returns (google.protobuf.Empty);
+    rpc DisconnectPeer (DisconnectRequest) returns (google.protobuf.Empty);
 }

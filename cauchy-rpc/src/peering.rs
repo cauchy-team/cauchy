@@ -13,21 +13,27 @@ use tonic::{Request, Response, Status};
 use gen::peering_server::{Peering, PeeringServer};
 use gen::*;
 
-pub struct NewPeerMessage {
+pub struct ConnectMessage {
     pub address: String,
     pub callback: oneshot::Sender<Result<(), io::Error>>,
 }
 
-pub type NewPeerSender = mpsc::Sender<NewPeerMessage>;
+pub struct DisconnectMessage {
+    pub address: String,
+    pub callback: oneshot::Sender<Result<(), io::Error>>,
+}
+
+pub type ConnectSink = mpsc::Sender<ConnectMessage>;
+pub type DisconnectSink = mpsc::Sender<DisconnectMessage>;
 
 #[derive(Clone)]
 pub struct PeeringService {
-    new_peer_send: NewPeerSender,
+    connect_sink: ConnectSink,
 }
 
 impl PeeringService {
-    pub fn new(new_peer_send: NewPeerSender) -> Self {
-        PeeringService { new_peer_send }
+    pub fn new(connect_sink: ConnectSink) -> Self {
+        PeeringService { connect_sink }
     }
 
     pub fn into_server(self) -> PeeringServer<Self> {
@@ -37,15 +43,12 @@ impl PeeringService {
 
 #[tonic::async_trait]
 impl Peering for PeeringService {
-    async fn connect_peer(
-        &self,
-        request: Request<ConnectPeerRequest>,
-    ) -> Result<Response<()>, Status> {
+    async fn connect_peer(&self, request: Request<ConnectRequest>) -> Result<Response<()>, Status> {
         let address = request.into_inner().address;
         let (callback, result) = oneshot::channel();
 
-        let new_peer = NewPeerMessage { address, callback };
-        self.new_peer_send
+        let new_peer = ConnectMessage { address, callback };
+        self.connect_sink
             .clone()
             .send(new_peer)
             .await
@@ -55,6 +58,13 @@ impl Peering for PeeringService {
             .expect("callback channel dropped")
             .map_err(|err| Status::unavailable(format!("{}", err)))?;
 
+        Ok(Response::new(()))
+    }
+
+    async fn disconnect_peer(
+        &self,
+        request: Request<DisconnectRequest>,
+    ) -> Result<Response<()>, Status> {
         Ok(Response::new(()))
     }
 }
