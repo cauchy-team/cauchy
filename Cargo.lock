@@ -177,6 +177,9 @@ name = "cauchy"
 version = "0.1.0"
 dependencies = [
  "cauchy-arena 0.1.0",
+ "cauchy-consensus 0.1.0",
+ "cauchy-crypto 0.1.0",
+ "cauchy-miner 0.1.0",
  "cauchy-network 0.1.0",
  "cauchy-rpc 0.1.0",
  "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",

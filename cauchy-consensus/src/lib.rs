@@ -3,6 +3,10 @@ use std::collections::HashMap;
 
 pub const ODDSKETCH_LEN: usize = 32;
 
+pub fn get_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
 #[derive(Clone)]
 pub struct Entry {
     pub oddsketch: [u8; ODDSKETCH_LEN],

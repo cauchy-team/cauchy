@@ -1,7 +1,3 @@
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
+pub fn get_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
 }

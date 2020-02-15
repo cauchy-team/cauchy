@@ -13,6 +13,10 @@ pub use codec::Message;
 
 const DEFAULT_CHANNEL_CAPACITY: usize = 1024;
 
+pub fn get_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
 /// Contains handle to various network resources.
 pub struct NetworkManager {
     send_tcp_stream: mpsc::Sender<TcpStream>,

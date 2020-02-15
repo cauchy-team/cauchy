@@ -6,6 +6,10 @@ use std::{net::SocketAddr, time::Duration};
 use futures::{channel::oneshot, FutureExt};
 use tonic::transport::{Error as TransportError, Server};
 
+pub fn get_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
 #[derive(Default)]
 pub struct RPCBuilder {
     shutdown_signal: Option<oneshot::Receiver<()>>,
@@ -25,8 +29,25 @@ impl RPCBuilder {
         self
     }
 
-    pub fn info_service(mut self, version: String) -> Self {
-        let info_service = info::InfoService::new(version);
+    pub fn info_service(
+        mut self,
+        daemon_version: String,
+        consensus_version: String,
+        network_version: String,
+        rpc_version: String,
+        arena_version: String,
+        miner_version: String,
+        crypto_version: String,
+    ) -> Self {
+        let info_service = info::InfoService::new(
+            daemon_version,
+            consensus_version,
+            network_version,
+            rpc_version,
+            arena_version,
+            miner_version,
+            crypto_version,
+        );
         self.info_service = Some(info_service);
         self
     }
