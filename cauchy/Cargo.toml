@@ -12,10 +12,12 @@ miner = { package = 'cauchy-miner',  path = '../cauchy-miner' }
 network = { package = 'cauchy-network',  path = '../cauchy-network' }
 rpc = { package = 'cauchy-rpc',  path = '../cauchy-rpc' }
 
+bytes = "0.5.4"
 clap = { version = "2.33.0", features = ["yaml"] }
 config = "0.10.1"
 dirs = "2.0.2"
 futures = "0.3.4"
+parking_lot = "0.10.0"
 serde = { version = "1.0.104", features = ['derive'] }
 stream-cancel = "0.5.2"
 tokio = { version = "0.2.11", features = ['macros'] }

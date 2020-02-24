@@ -1,9 +1,22 @@
+pub mod ego;
+pub mod peers;
 pub mod settings;
 
 use futures::{channel::mpsc, prelude::*};
-use std::net::SocketAddr;
+use parking_lot::RwLock;
 
+use std::{
+    collections::{
+        hash_map::{Iter, IterMut},
+        HashMap,
+    },
+    net::SocketAddr,
+    sync::Arc,
+};
+
+use arena::Arena;
 use network::NetworkHandles;
+use peers::{PeerHandle, SharedPeerHandle};
 use rpc::RPCBuilder;
 use settings::*;
 
@@ -47,6 +60,21 @@ fn wire_rpc(network_manager: &NetworkHandles, addr: String) {
         .peering_service(connect_sink);
     let rpc_addr = addr.parse().expect("malformed rpc address");
     tokio::spawn(rpc.start(rpc_addr));
+}
+
+#[derive(Clone)]
+pub struct PeerHandler {
+    peers: Arc<RwLock<HashMap<SocketAddr, SharedPeerHandle>>>,
+}
+
+impl Arena<SocketAddr, SharedPeerHandle> for PeerHandler {
+    fn get_player(&self, addr: &SocketAddr) -> Option<SharedPeerHandle> {
+        self.peers.read().get(addr).cloned()
+    }
+
+    fn players_map(&self) -> Arc<RwLock<HashMap<SocketAddr, SharedPeerHandle>>> {
+        self.peers.clone()
+    }
 }
 
 #[tokio::main]

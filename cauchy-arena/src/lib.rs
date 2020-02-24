@@ -1,5 +1,6 @@
 mod errors;
 
+use bytes::Bytes;
 use parking_lot::RwLock;
 use rand::{seq::IteratorRandom, Rng};
 
@@ -18,20 +19,20 @@ pub fn get_version() -> String {
 pub type Minisketch = ();
 
 pub struct PollResponse {
-    entry: Entry,
-    root: [u8; ROOT_LEN],
+    pub entry: Entry,
+    pub root: [u8; ROOT_LEN],
 }
 
 pub struct Perception {
-    root: [u8; ROOT_LEN],
-    minisketch: Minisketch,
+    pub root: Bytes,
+    pub minisketch: Minisketch,
 }
 
 #[derive(Default)]
 pub struct Position {
-    state: State,
-    poll_response: Option<PollResponse>,
-    perception: Option<Perception>,
+    pub state: State,
+    pub poll_response: Option<PollResponse>,
+    pub perception: Option<Perception>,
 }
 
 #[derive(PartialEq)]
@@ -47,40 +48,26 @@ impl Default for State {
 }
 
 pub trait Player {
-    fn get_position<'a>(&self) -> &'a Position;
-
-    fn get_mut_position<'a>(&self) -> &'a mut Position;
+    fn get_position(&self) -> Arc<RwLock<Position>>;
 }
 
 pub trait Arena<K, P>
 where
     K: std::cmp::Eq + std::hash::Hash + Clone,
-    P: Player,
+    P: Player + Clone,
 {
-    fn get_player<'a>(&self, key: &K) -> Option<&'a P>;
+    fn get_player(&self, key: &K) -> Option<P>;
 
-    fn get_position<'a>(&self, key: &K) -> Option<&'a Position> {
-        self.get_player(&key).map(Player::get_position)
-    }
+    fn players_map(&self) -> Arc<RwLock<HashMap<K, P>>>;
 
-    fn players_iter<'a>(&'a self) -> Iter<'a, K, P>;
-
-    fn players_iter_mut<'a>(&'a self) -> IterMut<'a, K, P>;
-
-    fn get_mut_position<'a>(&self, key: &K) -> Option<&'a mut Position> {
-        self.get_player(key).map(Player::get_mut_position)
-    }
-
-    fn push_perception(&self, key: &K, perception: Perception) {
-        self.get_mut_position(key)
-            .expect("unexpected id")
-            .perception = Some(perception);
-    }
-
-    fn choose_multiple<'a>(&self, n: usize) -> Vec<(&K, &P)> {
+    fn choose_multiple(&self, n: usize) -> Vec<(K, P)> {
         let mut rng = rand::thread_rng();
-        self.players_iter()
-            .filter(|(_, player)| player.get_position().state == State::Idle)
+        self.players_map()
+            .read()
+            .iter()
+            .filter(|(_, player)| player.get_position().read().state == State::Idle)
+            // .cloned()
+            .map(move |(key, player)| (key.clone(), player.clone()))
             .choose_multiple(&mut rng, n)
     }
 
@@ -90,23 +77,26 @@ where
         response: PollResponse,
     ) -> Result<(), UnexpectedPollResponse> {
         // Check peer is in polling state
-        let position = self.get_mut_position(&key).expect("unexpected id");
-        if position.poll_response.is_none() {
+        let position = self.get_player(&key).expect("unexpected id").get_position();
+        if position.read().poll_response.is_none() {
             // Add poll response
-            position.poll_response = Some(response);
+            position.write().poll_response = Some(response);
             Ok(())
         } else {
             Err(UnexpectedPollResponse)
         }
     }
 
-    fn conclude_polling(&self) -> PollResults<K> {
+    fn conclude_polling<I: Iterator<Item = (K, P)>>(&self) -> PollResults<K> {
         let mut lagards = Vec::with_capacity(256);
         let responses = self
-            .players_iter()
-            .filter(|(_, player)| player.get_position().state == State::Polled)
+            .players_map()
+            .read()
+            .iter()
+            .filter(|(_, player)| player.get_position().read().state == State::Polled)
             .filter_map(|(key, player)| {
-                let position_mut = player.get_mut_position();
+                let position = player.get_position();
+                let mut position_mut = position.write();
                 position_mut.state = State::Idle;
                 match position_mut.poll_response.take() {
                     Some(entry) => Some((key.clone(), entry)),
@@ -125,24 +115,3 @@ pub struct PollResults<Key> {
     responses: HashMap<Key, PollResponse>,
     lagards: Vec<Key>,
 }
-
-// impl Arena {
-//     pub fn new_peer(&self) -> usize {
-//         let mut rng = rand::thread_rng();
-
-//         let index: usize = rng.gen();
-//         let peer = Peer {
-//             state: PeerState::Idle,
-//             poll_response: None,
-//             perception: None,
-//         };
-//         let peer = Arc::new(RwLock::new(peer));
-//         self.peers.write().insert(index, peer);
-//         index
-//     }
-
-//     pub fn remove_peer(&self, id: usize) {
-//         self.peers.write().remove(&id);
-//     }
-
-// }

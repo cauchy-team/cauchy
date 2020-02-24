@@ -4,7 +4,8 @@ mod encoder;
 use bytes::Bytes;
 use tokio_util::codec::{Decoder, Encoder};
 
-use decoder::DecodeState;
+pub use decoder::*;
+pub use encoder::*;
 
 const DIGEST_LEN: usize = 32;
 
@@ -14,9 +15,9 @@ Network messages
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Status {
-    oddsketch: Bytes,
-    root: Bytes,
-    nonce: u64,
+    pub oddsketch: Bytes,
+    pub root: Bytes,
+    pub nonce: u64,
 }
 
 #[derive(Clone, Debug, PartialEq)]
