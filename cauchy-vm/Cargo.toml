@@ -1,9 +1,12 @@
 [package]
 name = "cauchy-vm"
 version = "0.1.0"
-authors = ["Harry Barber <harrybarber@protonmail.com>"]
+authors = ["Harry Barber <harrybarber@protonmail.com>", "Chris Novick <c.r.novick@pm.me>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+bytes = "*"
+rust-wasm = {git="https://github.com/TheRealBluesun/rust-wasm", branch="contract_data_interop"}
+# rust-wasm = {path="../../rust-wasm/"}
