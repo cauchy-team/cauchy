@@ -1,74 +1,105 @@
-use bytes::Bytes;
+use std::io::Cursor;
 
 pub fn get_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
 
 pub trait CauchyVM {
-    fn initialize(transaction: Bytes) -> Result<(), ()>;
-    fn process_inbox(transaction: Bytes, message: Bytes) -> Result<(), ()>;
+    fn initialize(script: Script<'_>) -> Result<()>;
+    fn process_inbox(script: Script<'_>, message: Vec<u8>) -> Result<()>;
 }
 
 use rust_wasm::*;
 use std::io::BufReader;
 
+pub struct Script<'a> {
+    func: Option<&'a str>,
+    script: Vec<u8>,
+    aux_data: Vec<u8>,
+}
+
+type Result<T> = std::result::Result<T, VmErr>;
+
+pub enum VmErr {
+    Unknown,
+}
+
 pub struct WasmVM {}
 
 impl WasmVM {
-    pub fn initialize(_transaction: Bytes) -> Result<(), ()> {
+    pub fn initialize(script: Script<'_>) -> Result<()> {
         // TODO: get data from transaction
-        let contract_data = vec![0x41, 0x42, 0x43, 0x44, 0x45];
-        let mut cdata_builder = contract_data.len().to_le_bytes().to_vec();
-        cdata_builder.extend(contract_data);
+        let mut cdata_builder = script.aux_data.len().to_le_bytes().to_vec();
+        cdata_builder.extend(script.aux_data);
+        let func = if let Some(func) = script.func {
+            func
+        } else {
+            "init"
+        };
 
-        let f = std::fs::File::open("contract_data.wasm").unwrap();
-        let module = decode_module(BufReader::new(f)).unwrap();
-
+        let module = decode_module(Cursor::new(script.script)).unwrap();
         let mut store = init_store();
         let module_instance = instantiate_module(&mut store, module, &[]).unwrap();
-        if let ExternVal::Func(main_addr) = get_export(&module_instance, "app_init").unwrap() {
+        if let ExternVal::Func(main_addr) = get_export(&module_instance, func).unwrap() {
             let res = invoke_func(&mut store, main_addr, Vec::new(), Some(cdata_builder));
             println!("{:X?}", res);
             save_store("some_txid", &store);
             Ok(())
         } else {
-            Err(())
+            Err(VmErr::Unknown)
         }
     }
 
-    pub fn process_inbox(_transaction: Bytes, message: Bytes) -> Result<(), ()> {
-        // TODO: get data from transaction
-        let contract_data = Some(vec![0x41, 0x42, 0x43, 0x44, 0x45]);
-        let f = std::fs::File::open("contract_data.wasm").unwrap();
-        let module = decode_module(BufReader::new(f)).unwrap();
+    pub fn process_inbox(script: Script<'_>, message: Vec<u8>) -> Result<()> {
+        let mut cdata_builder = script.aux_data.len().to_le_bytes().to_vec();
+        cdata_builder.extend(script.aux_data);
+        let module = decode_module(Cursor::new(script.script)).unwrap();
         let mut store = init_store();
+        let func = if let Some(func) = script.func {
+            func
+        } else {
+            "inbox"
+        };
         let module_instance = instantiate_module(&mut store, module, &[]).unwrap();
         restore_store(&mut store, "some_txid");
-        if let ExternVal::Func(main_addr) = get_export(&module_instance, "inbox").unwrap() {
-            let res = invoke_func(&mut store, main_addr, Vec::new(), contract_data);
+        if let ExternVal::Func(main_addr) = get_export(&module_instance, func).unwrap() {
+            let res = invoke_func(&mut store, main_addr, Vec::new(), Some(cdata_builder));
             println!("{:X?}", res);
             save_store("some_txid", &store);
             Ok(())
         } else {
-            Err(())
+            Err(VmErr::Unknown)
         }
     }
 }
 
 impl CauchyVM for WasmVM {
-    fn initialize(transaction: Bytes) -> Result<(), ()> {
-        WasmVM::initialize(transaction)
+    fn initialize(script: Script<'_>) -> Result<()> {
+        WasmVM::initialize(script)
     }
 
-    fn process_inbox(transaction: Bytes, message: Bytes) -> Result<(), ()> {
-        WasmVM::process_inbox(transaction, message)
+    fn process_inbox(script: Script<'_>, message: Vec<u8>) -> Result<()> {
+        WasmVM::process_inbox(script, message)
     }
 }
 
 #[test]
 fn vm_test() {
-    let res1 = WasmVM::initialize(Bytes::new());
-    assert!(res1.is_ok());
-    let res2 = WasmVM::process_inbox(Bytes::new(), Bytes::new());
+    use std::fs::File;
+    use std::io::prelude::*;
+    // let res1 = WasmVM::initialize(Bytes::new());
+    // assert!(res1.is_ok());
+    let mut f = std::fs::File::open("contract_data.wasm").unwrap();
+    let mut script = Vec::new();
+    f.read_to_end(&mut script);
+
+    let aux_data = vec![0x41, 0x42, 0x43, 0x44, 0x45];
+
+    let script = Script {
+        func: None,
+        script,
+        aux_data,
+    };
+    let res2 = WasmVM::process_inbox(script, vec![]);
     assert!(res2.is_ok());
 }
