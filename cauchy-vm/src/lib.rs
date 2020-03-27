@@ -85,13 +85,13 @@ impl CauchyVM for WasmVM {
 
 #[test]
 fn vm_test() {
-    use std::fs::File;
     use std::io::prelude::*;
     // let res1 = WasmVM::initialize(Bytes::new());
     // assert!(res1.is_ok());
     let mut f = std::fs::File::open("contracts/contract_data.wasm").unwrap();
     let mut script = Vec::new();
-    f.read_to_end(&mut script);
+    f.read_to_end(&mut script)
+        .expect("failed to open contract_data.wasm");
 
     let aux_data = vec![0x41, 0x42, 0x43, 0x44, 0x45];
 
