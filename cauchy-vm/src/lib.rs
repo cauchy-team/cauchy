@@ -89,7 +89,7 @@ fn vm_test() {
     use std::io::prelude::*;
     // let res1 = WasmVM::initialize(Bytes::new());
     // assert!(res1.is_ok());
-    let mut f = std::fs::File::open("contract_data.wasm").unwrap();
+    let mut f = std::fs::File::open("contracts/contract_data.wasm").unwrap();
     let mut script = Vec::new();
     f.read_to_end(&mut script);
 

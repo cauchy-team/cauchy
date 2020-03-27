@@ -11,8 +11,9 @@ fn main() {
 
     Command::new("cp")
         .arg("target/wasm32-unknown-unknown/release/contract_data.wasm")
-        .arg("../../")
+        .arg("../")
         .current_dir("contracts/contract_data")
         .output()
         .expect("failed to copy contract");
+    println!("cargo:rerun-if-changed=contracts/contract_data/src/main.rs");
 }
