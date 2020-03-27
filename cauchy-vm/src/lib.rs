@@ -5,12 +5,11 @@ pub fn get_version() -> String {
 }
 
 pub trait CauchyVM {
-    fn initialize(script: Script<'_>) -> Result<()>;
-    fn process_inbox(script: Script<'_>, message: Vec<u8>) -> Result<()>;
+    fn initialize(script: &Script<'_>) -> Result<()>;
+    fn process_inbox(script: &Script<'_>, message: Vec<u8>) -> Result<()>;
 }
 
 use rust_wasm::*;
-use std::io::BufReader;
 
 pub struct Script<'a> {
     func: Option<&'a str>,
@@ -27,17 +26,17 @@ pub enum VmErr {
 pub struct WasmVM {}
 
 impl WasmVM {
-    pub fn initialize(script: Script<'_>) -> Result<()> {
+    pub fn initialize(script: &Script<'_>) -> Result<()> {
         // TODO: get data from transaction
         let mut cdata_builder = script.aux_data.len().to_le_bytes().to_vec();
-        cdata_builder.extend(script.aux_data);
+        cdata_builder.extend(&script.aux_data);
         let func = if let Some(func) = script.func {
             func
         } else {
             "init"
         };
 
-        let module = decode_module(Cursor::new(script.script)).unwrap();
+        let module = decode_module(Cursor::new(&script.script)).unwrap();
         let mut store = init_store();
         let module_instance = instantiate_module(&mut store, module, &[]).unwrap();
         if let ExternVal::Func(main_addr) = get_export(&module_instance, func).unwrap() {
@@ -50,10 +49,10 @@ impl WasmVM {
         }
     }
 
-    pub fn process_inbox(script: Script<'_>, message: Vec<u8>) -> Result<()> {
+    pub fn process_inbox(script: &Script<'_>, message: Vec<u8>) -> Result<()> {
         let mut cdata_builder = script.aux_data.len().to_le_bytes().to_vec();
-        cdata_builder.extend(script.aux_data);
-        let module = decode_module(Cursor::new(script.script)).unwrap();
+        cdata_builder.extend(&script.aux_data);
+        let module = decode_module(Cursor::new(&script.script)).unwrap();
         let mut store = init_store();
         let func = if let Some(func) = script.func {
             func
@@ -74,11 +73,11 @@ impl WasmVM {
 }
 
 impl CauchyVM for WasmVM {
-    fn initialize(script: Script<'_>) -> Result<()> {
+    fn initialize(script: &Script<'_>) -> Result<()> {
         WasmVM::initialize(script)
     }
 
-    fn process_inbox(script: Script<'_>, message: Vec<u8>) -> Result<()> {
+    fn process_inbox(script: &Script<'_>, message: Vec<u8>) -> Result<()> {
         WasmVM::process_inbox(script, message)
     }
 }
@@ -100,6 +99,6 @@ fn vm_test() {
         script,
         aux_data,
     };
-    let res2 = WasmVM::process_inbox(script, vec![]);
+    let res2 = WasmVM::process_inbox(&script, vec![]);
     assert!(res2.is_ok());
 }
