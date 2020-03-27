@@ -8,3 +8,5 @@
 cauchy-rpc/example/__pycache__/
 
 cauchy-vm/states/
+
+*.wasm
