@@ -1,7 +1,7 @@
 use std::process::Command;
 
 fn main() {
-    let cmd = Command::new("cargo")
+    let _output = Command::new("cargo")
         .arg("build")
         .arg("--release")
         .arg("--target=wasm32-unknown-unknown")
