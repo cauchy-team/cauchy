@@ -16,7 +16,7 @@ fn main() {}
 
 #[no_mangle]
 pub extern "C" fn init() -> u32 {
-    let reader = VMDataReader::new(DataType::ContractData);
+    let reader = VMDataReader::new(DataType::AuxData);
     let data: Vec<u8> = reader.collect();
     u32::from_le_bytes(data[..4].try_into().unwrap())
 }
@@ -33,29 +33,29 @@ fn test_init() {
 }
 
 pub enum DataType {
-    ContractData,
+    AuxData,
     MsgData,
 }
 
 pub struct VMDataReader {
+    data_addr: u32,
     cur_offset: u32,
     end_offset: u32,
-    base_addr: u32,
 }
 
 impl VMDataReader {
     pub fn new(data: DataType) -> Self {
-        let base_addr = match data {
-            DataType::ContractData => 0x1u32 << 31,
+        let data_addr = match data {
+            DataType::AuxData => 0x1u32 << 31,
             DataType::MsgData => 0x1u32 << 30,
         };
         unsafe {
             // The end_offset is the size + 4 bytes for the size
-            let end_offset = *(base_addr as *const u32) + 4;
+            let end_offset = *(data_addr as *const u32) + 4;
             VMDataReader {
+                data_addr,
                 cur_offset: 4u32,
                 end_offset,
-                base_addr,
             }
         }
     }
@@ -67,9 +67,9 @@ impl Iterator for VMDataReader {
     fn next(&mut self) -> Option<Self::Item> {
         unsafe {
             if self.cur_offset < self.end_offset {
-                let ptr = (self.base_addr + self.cur_offset) as *const u8;
+                let byte = *((self.data_addr + self.cur_offset) as *const u8);
                 self.cur_offset += 1;
-                Some(*ptr)
+                Some(byte)
             } else {
                 None
             }

@@ -14,7 +14,7 @@ use rust_wasm::*;
 pub struct Script<'a> {
     func: Option<&'a str>,
     script: Vec<u8>,
-    aux_data: Vec<u8>,
+    aux_data: Option<Vec<u8>>,
 }
 
 type Result<T> = std::result::Result<T, VmErr>;
@@ -27,22 +27,25 @@ pub struct WasmVM {}
 
 impl WasmVM {
     pub fn initialize(script: &Script<'_>) -> Result<()> {
-        // TODO: get data from transaction
-        let mut cdata_builder = (script.aux_data.len() as u32).to_le_bytes().to_vec();
-        cdata_builder.extend(&script.aux_data);
-        let func = if let Some(func) = script.func {
+        let func = if let Some(func) = &script.func {
             func
         } else {
             "init"
         };
 
-        println!("{:X?}", &cdata_builder);
+        println!("{:X?}", &script.aux_data);
 
         let module = decode_module(Cursor::new(&script.script)).unwrap();
         let mut store = init_store();
         let module_instance = instantiate_module(&mut store, module, &[]).unwrap();
         if let ExternVal::Func(main_addr) = get_export(&module_instance, func).unwrap() {
-            let res = invoke_func(&mut store, main_addr, Vec::new(), Some(cdata_builder));
+            let res = invoke_func(
+                &mut store,
+                main_addr,
+                Vec::new(),
+                script.aux_data.as_ref(),
+                None,
+            );
             println!("{:X?}", res);
             save_store("some_txid", &store);
             match res {
@@ -55,8 +58,6 @@ impl WasmVM {
     }
 
     pub fn process_inbox(script: &Script<'_>, _message: Vec<u8>) -> Result<()> {
-        let mut cdata_builder = (script.aux_data.len() as u32).to_le_bytes().to_vec();
-        cdata_builder.extend(&script.aux_data);
         let module = decode_module(Cursor::new(&script.script)).unwrap();
         let mut store = init_store();
         let func = if let Some(func) = script.func {
@@ -67,7 +68,13 @@ impl WasmVM {
         let module_instance = instantiate_module(&mut store, module, &[]).unwrap();
         restore_store(&mut store, "some_txid");
         if let ExternVal::Func(main_addr) = get_export(&module_instance, func).unwrap() {
-            let res = invoke_func(&mut store, main_addr, Vec::new(), Some(cdata_builder));
+            let res = invoke_func(
+                &mut store,
+                main_addr,
+                Vec::new(),
+                script.aux_data.as_ref(),
+                None,
+            );
             println!("{:X?}", res);
             save_store("some_txid", &store);
             match res {
@@ -101,7 +108,7 @@ fn vm_test() {
     f.read_to_end(&mut script)
         .expect("failed to read contract_data.wasm");
 
-    let aux_data = vec![0x41, 0x42, 0x43, 0x44, 0x45];
+    let aux_data = Some(vec![0x41, 0x42, 0x43, 0x44, 0x45]);
 
     let script = Script {
         func: None,
