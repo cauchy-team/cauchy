@@ -6,7 +6,7 @@ pub fn get_version() -> String {
 
 pub trait CauchyVM {
     fn initialize(script: &Script<'_>) -> Result<()>;
-    fn process_inbox(script: &Script<'_>, message: Vec<u8>) -> Result<()>;
+    fn process_inbox(script: &Script<'_>, message: Option<Vec<u8>>) -> Result<()>;
 }
 
 use rust_wasm::*;
@@ -57,7 +57,7 @@ impl WasmVM {
         }
     }
 
-    pub fn process_inbox(script: &Script<'_>, _message: Vec<u8>) -> Result<()> {
+    pub fn process_inbox(script: &Script<'_>, message: Option<Vec<u8>>) -> Result<()> {
         let module = decode_module(Cursor::new(&script.script)).unwrap();
         let mut store = init_store();
         let func = if let Some(func) = script.func {
@@ -73,7 +73,7 @@ impl WasmVM {
                 main_addr,
                 Vec::new(),
                 script.aux_data.as_ref(),
-                None,
+                message.as_ref(),
             );
             println!("{:X?}", res);
             save_store("some_txid", &store);
@@ -92,7 +92,7 @@ impl CauchyVM for WasmVM {
         WasmVM::initialize(script)
     }
 
-    fn process_inbox(script: &Script<'_>, message: Vec<u8>) -> Result<()> {
+    fn process_inbox(script: &Script<'_>, message: Option<Vec<u8>>) -> Result<()> {
         WasmVM::process_inbox(script, message)
     }
 }

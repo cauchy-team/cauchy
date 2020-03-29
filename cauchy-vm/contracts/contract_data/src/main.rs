@@ -18,7 +18,8 @@ fn main() {}
 pub extern "C" fn init() -> u32 {
     let reader = VMDataReader::new(DataType::AuxData);
     let data: Vec<u8> = reader.collect();
-    u32::from_le_bytes(data[..4].try_into().unwrap())
+    // u32::from_le_bytes(data[..4].try_into().unwrap())
+    data.len() as u32
 }
 
 #[no_mangle]
