@@ -8,19 +8,23 @@ use std::convert::TryInto;
 //     loop {}
 // }
 
-static mut MY_DATA: Vec<u32> = Vec::new();
+// static mut MY_DATA: Vec<u32> = Vec::new();
 
 // #[cfg(not(target_arch = "wasm32"))]
 // #[no_mangle]
-fn main() {}
+// fn main() {}
 
 #[no_mangle]
 pub extern "C" fn init() -> u32 {
     let reader = VMDataReader::new(DataType::AuxData);
-    let data: Vec<u8> = reader.collect();
-    // u32::from_le_bytes(data[..4].try_into().unwrap())
-    data.len() as u32
+    let (_, sum) = reader.take(4).fold((0, 0), |(i, sum), byte| {
+        let b = ((byte as u32) << i) | sum;
+        (i + 8, b)
+    });
+    sum
 }
+
+fn main() {}
 
 #[no_mangle]
 pub extern "C" fn inbox() -> u32 {

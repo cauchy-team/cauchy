@@ -16,5 +16,5 @@ fn main() {
     //     .current_dir("contracts\\contract_data")
     //     .output()
     //     .expect("failed to copy contract_data.wasm file :-(");
-    println!("cargo:rerun-if-changed=contracts\\contract_data\\src\\main.rs");
+    println!("cargo:rerun-if-changed=contractscontract_data/src/main.rs");
 }
