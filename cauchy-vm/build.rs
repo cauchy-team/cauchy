@@ -5,15 +5,16 @@ fn main() {
         .arg("build")
         .arg("--release")
         .arg("--target=wasm32-unknown-unknown")
-        .current_dir("contracts/contract_data")
+        .current_dir("contracts\\contract_data")
         .output()
         .expect("failed to build contract");
 
-    Command::new("cp")
-        .arg("target/wasm32-unknown-unknown/release/contract_data.wasm")
-        .arg("../")
-        .current_dir("contracts/contract_data")
-        .output()
-        .expect("failed to copy contract");
-    println!("cargo:rerun-if-changed=contracts/contract_data/src/main.rs");
+    // Command::new("copy")
+    //     .arg("/y")
+    //     .arg("\"target\\wasm32-unknown-unknown\\release\\contract_data.wasm\"")
+    //     .arg("\"../\"")
+    //     .current_dir("contracts\\contract_data")
+    //     .output()
+    //     .expect("failed to copy contract_data.wasm file :-(");
+    println!("cargo:rerun-if-changed=contracts\\contract_data\\src\\main.rs");
 }
