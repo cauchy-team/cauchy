@@ -1,3 +1,5 @@
+pub mod merkle;
+
 use std::io::Cursor;
 
 pub fn get_version() -> String {
