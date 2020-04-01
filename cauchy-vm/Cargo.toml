@@ -12,3 +12,4 @@ bytes = "*"
 rust-wasm = {path="../../rust-wasm/"}
 digest = "*"
 hex = "*"
+sha2 = "*"

@@ -39,10 +39,10 @@ impl<'a, HashT: Digest + 'a> Merkle<HashT> {
         }
     }
 
-    pub fn add_leaf(&mut self, bytes: Bytes) {
+    pub fn add_leaf(&mut self, bytes: &[u8]) {
         self.nodes.push(Node {
             // value: Some(bytes),
-            value: Some(Bytes::from(&HashT::digest(&bytes)[..])),
+            value: Some(Bytes::from(HashT::digest(&bytes).to_vec())),
             left: None,
             right: None,
             isroot: false,
@@ -129,7 +129,7 @@ impl<'a, HashT: Digest + 'a> Merkle<HashT> {
                     panic!("unable to take node value as reference");
                 }
 
-                let digest = Bytes::from(&HashT::digest(&n1_value)[..]);
+                let digest = Bytes::from(HashT::digest(&n1_value).to_vec());
                 // Our new node has the value of the hash of the two children and points to them
                 let new_node = Node {
                     value: Some(digest),
@@ -168,4 +168,12 @@ impl<'a, HashT: Digest + 'a> Merkle<HashT> {
         // Pass our constructed return vector and root up the call stack
         (ret_vec, root)
     }
+}
+
+#[test]
+fn merkle_test() {
+    use sha2::Sha256;
+    let mut merkle = Merkle::<Sha256>::new();
+    (0u8..3u8).for_each(|v| merkle.add_leaf(&v.to_le_bytes()));
+    let res = merkle.build(true);
 }
