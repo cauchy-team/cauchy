@@ -8,5 +8,11 @@ edition = "2018"
 
 [dependencies]
 bytes = "*"
-# rust-wasm = {git="https://github.com/TheRealBluesun/rust-wasm", branch="contract_data_interop"}
-rust-wasm = {path="../../rust-wasm/"}
+rust-wasm = {git="https://github.com/TheRealBluesun/rust-wasm", branch="master"}
+digest = "*"
+rayon = "*"
+
+[dev-dependencies]
+hex = "*"
+sha2 = "*"
+blake3 = "*"
