@@ -62,10 +62,10 @@ fn test_merkle() {
     }
     merkle.build_tree();
     if let Some(tree) = &merkle.tree {
-        for row in tree {
-            println!("--");
+        for (idx, row) in tree.iter().enumerate() {
+            println!("{} -- ({})", idx, row.len());
             for node in row {
-                println!("{} ", hex::encode(&node));
+                println!("{}", hex::encode(&node));
             }
         }
     }

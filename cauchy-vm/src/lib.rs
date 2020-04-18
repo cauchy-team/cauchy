@@ -1,4 +1,5 @@
 pub mod merkle;
+pub use merkle::*;
 
 use std::io::Cursor;
 
