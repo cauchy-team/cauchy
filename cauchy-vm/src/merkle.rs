@@ -2,19 +2,16 @@ use digest::Digest;
 use rayon::prelude::*;
 use std::marker::PhantomData;
 
-pub struct MerkleTree<'a, HashT: Digest> {
+#[derive(Default)]
+pub struct MerkleTree<'a, HashT: Digest + Default> {
     pub tree: Option<Vec<Vec<Vec<u8>>>>,
     leaves: Vec<&'a [u8]>,
     _hasher: PhantomData<HashT>,
 }
 
-impl<'a, HashT: Digest> MerkleTree<'a, HashT> {
+impl<'a, HashT: Digest + Default> MerkleTree<'a, HashT> {
     pub fn new() -> Self {
-        MerkleTree {
-            tree: None,
-            leaves: Vec::new(),
-            _hasher: PhantomData::<HashT>,
-        }
+        MerkleTree::default()
     }
 
     pub fn add_leaf(&mut self, hash: &'a dyn AsRef<[u8]>) {
