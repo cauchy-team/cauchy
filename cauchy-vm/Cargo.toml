@@ -16,3 +16,4 @@ rayon = "*"
 [dev-dependencies]
 hex = "*"
 sha2 = "*"
+blake3 = "*"

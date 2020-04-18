@@ -48,24 +48,52 @@ impl<'a, HashT: Digest + Default> MerkleTree<'a, HashT> {
     }
 }
 
-#[test]
-fn test_merkle() {
-    use sha2::Sha256;
-    let mut merkle = MerkleTree::<Sha256>::new();
-    for _ in 0..200 {
-        merkle.add_leaf(&[]);
-    }
-    merkle.build_tree();
-    if let Some(tree) = &merkle.tree {
-        for (idx, row) in tree.iter().enumerate() {
-            println!("{} -- ({})", idx, row.len());
-            for node in row {
-                println!("{}", hex::encode(&node));
+#[cfg(test)]
+mod tests {
+    use crate::merkle::MerkleTree;
+    #[test]
+    fn test_merkle() {
+        use sha2::Sha256;
+        let mut merkle = MerkleTree::<Sha256>::new();
+        for _ in 0..200 {
+            merkle.add_leaf(&[]);
+        }
+        merkle.build_tree();
+        if let Some(tree) = &merkle.tree {
+            for (idx, row) in tree.iter().enumerate() {
+                println!("{} -- ({})", idx, row.len());
+                for node in row {
+                    println!("{}", hex::encode(&node));
+                }
             }
         }
+        assert_eq!(
+            &merkle.root().unwrap()[..],
+            &hex::decode("8ff9103704f4e7dfee6106551eb439d3ac6bc5cc4873ced8ec33eaf2d42f4c31")
+                .unwrap()[..]
+        );
     }
-    assert_eq!(
-        &merkle.root().unwrap()[..],
-        &hex::decode("8ff9103704f4e7dfee6106551eb439d3ac6bc5cc4873ced8ec33eaf2d42f4c31").unwrap()[..]
-    );
+
+    #[test]
+    fn test_merkle_blake() {
+        use blake3::Hasher;
+        let mut merkle = MerkleTree::<Hasher>::new();
+        for _ in 0..200 {
+            merkle.add_leaf(&[]);
+        }
+        merkle.build_tree();
+        if let Some(tree) = &merkle.tree {
+            for (idx, row) in tree.iter().enumerate() {
+                println!("{} -- ({})", idx, row.len());
+                for node in row {
+                    println!("{}", hex::encode(&node));
+                }
+            }
+        }
+        assert_eq!(
+            &merkle.root().unwrap()[..],
+            &hex::decode("0d7bc3ff0245d97e7b6e76c6966ca3a64dd6e43dfc3e9b769b8e87cc792f5c84")
+                .unwrap()[..]
+        );
+    }
 }
