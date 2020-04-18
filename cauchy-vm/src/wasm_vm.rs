@@ -25,7 +25,7 @@ impl WasmVM {
                 script.aux_data.as_ref(),
                 None,
             );
-            println!("{:X?}", res);
+            println!("func '{}' returned {:X?}", func, res);
             save_store("some_txid", &store);
             match res {
                 Ok(_) => Ok(()),
@@ -54,7 +54,7 @@ impl WasmVM {
                 script.aux_data.as_ref(),
                 message.as_ref(),
             );
-            println!("{:X?}", res);
+            println!("func '{}' returned {:X?}", func, res);
             save_store("some_txid", &store);
             match res {
                 Ok(_) => Ok(()),
