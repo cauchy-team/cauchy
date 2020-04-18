@@ -30,25 +30,5 @@ pub trait CauchyVM {
 mod test {
     use crate::{CauchyVM, DefaultVM, Script};
     #[test]
-    fn vm_interface() {
-        use std::io::prelude::*;
-
-        let dir = std::env::current_dir().unwrap().join(
-            "contracts/contract_data/target/wasm32-unknown-unknown/release/contract_data.wasm",
-        );
-        let mut f = std::fs::File::open(dir.as_path()).expect("failed to open contract_data.wasm");
-        let mut script = Vec::new();
-        f.read_to_end(&mut script)
-            .expect("failed to read contract_data.wasm");
-        let aux_data = Some(vec![0x41, 0x42, 0x43, 0x44, 0x45]);
-        let script = Script {
-            func: None,
-            script,
-            aux_data,
-        };
-
-        let mut vm = DefaultVM::default();
-        vm.initialize(&script).unwrap();
-        vm.process_inbox(&script, None).unwrap();
-    }
+    fn vm_interface() {}
 }
