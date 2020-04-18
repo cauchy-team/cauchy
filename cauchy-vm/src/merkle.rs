@@ -60,17 +60,6 @@ fn test_merkle() {
     for _ in 0..200 {
         merkle.add_leaf(&[]);
     }
-    // merkle.add_leaf(&[2u8, 3]);
-    // merkle.add_leaf(&[4u8, 5]);
-    // merkle.add_leaf(&[6u8, 7]);
-    // merkle.add_leaf(&[8u8, 9]);
-    // merkle.add_leaf(&[10u8, 11]);
-    // merkle.add_leaf(&[12u8, 13]);
-    // merkle.add_leaf(&[14u8, 15]);
-    // merkle.add_leaf(&[16u8, 17]);
-    // merkle.add_leaf(&[18u8, 19]);
-    // merkle.add_leaf(&[18u8, 19]);
-    // merkle.add_leaf(&[18u8, 19]);
     merkle.build_tree();
     if let Some(tree) = &merkle.tree {
         for row in tree {
