@@ -1,179 +1,71 @@
-use bytes::{Bytes, BytesMut};
-// use sha2::{Digest, HashT};
 use digest::Digest;
 use std::marker::PhantomData;
 
-#[derive(Clone, Debug)]
-pub struct Node {
-    value: Option<Bytes>,
-    left: Option<Box<Node>>,
-    right: Option<Box<Node>>,
-    isroot: bool,
-}
+type RowT<'a> = Vec<&'a [u8]>;
 
-impl Node {
-    pub fn value(&self) -> Option<Bytes> {
-        self.value.clone()
-    }
-}
-
-pub struct Merkle<HashT: Digest> {
-    nodes: Vec<Node>,
-    num_leaves: usize,
-    root: Option<Box<Node>>,
+pub struct MerkleTree<'a, HashT: Digest> {
+    pub tree: Option<Vec<Vec<Vec<u8>>>>,
+    leaves: RowT<'a>,
     _hasher: PhantomData<HashT>,
 }
 
-pub enum WalkDirection {
-    LEFT,
-    RIGHT,
-}
-
-impl<'a, HashT: Digest + 'a> Merkle<HashT> {
-    pub fn new() -> Merkle<HashT> {
-        Merkle {
-            nodes: Vec::<Node>::new(),
-            num_leaves: 0,
-            root: None,
-            _hasher: PhantomData,
+impl<'a, HashT: Digest> MerkleTree<'a, HashT> {
+    pub fn new() -> Self {
+        MerkleTree {
+            tree: None,
+            leaves: RowT::new(),
+            _hasher: PhantomData::<HashT>,
         }
     }
 
-    pub fn add_leaf(&mut self, bytes: &[u8]) {
-        self.nodes.push(Node {
-            // value: Some(bytes),
-            value: Some(Bytes::from(HashT::digest(&bytes).to_vec())),
-            left: None,
-            right: None,
-            isroot: false,
-        });
-        self.num_leaves += 1;
+    pub fn add_leaf(&mut self, hash: &'a dyn AsRef<[u8]>) {
+        self.leaves.push(hash.as_ref())
     }
 
-    pub fn get_root(&self) -> Option<&Node> {
-        if let Some(last) = self.nodes.last() {
-            if last.isroot {
-                Some(last)
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    }
-
-    //
-    //  Walk the tree given a path
-    //
-    pub fn walk(&self, path: &[WalkDirection]) -> &Option<Box<Node>> {
-        let mut curr_node = &self.root;
-        for step in path {
-            if let Some(node_res) = curr_node {
-                curr_node = match step {
-                    WalkDirection::LEFT => &node_res.left,
-                    WalkDirection::RIGHT => &node_res.right,
-                }
-            } else {
-                break;
-            }
-        }
-        curr_node
-    }
-
-    //
-    // [Re-]Build the tree based on the leaves
-    //
-    pub fn build(&mut self, verbose: bool) -> bool {
-        // First we throw away all but the leaves by filtering on is_none() for the left and right children
-        // This allows for a stateless build() function wherein leaves can be added and the tree can be
-        // rebuilt at any time
-        self.nodes = self
-            .nodes
-            .iter()
-            .cloned()
-            .filter(|x| x.left.is_none() && x.right.is_none())
-            .collect();
-
-        // Call the inner (recursive) build function to construct our tree
-        let (new_nodes, root) = Merkle::<HashT>::build_inner(&self.nodes, verbose);
-        // Add the tree nodes to our existing leaves and set the root
-        self.nodes.extend(new_nodes);
-        self.root = root;
-        self.root.is_some()
-    }
-
-    //
-    // Inner build function, called recursively to build up the tree
-    //
-    fn build_inner(nodes: &[Node], verbose: bool) -> (Vec<Node>, Option<Box<Node>>) {
-        // Return vector for this call
-        let mut ret_vec = Vec::<Node>::new();
-        let mut node_iter = nodes.iter();
-        let mut root = None;
-        let mut last_node: Option<Node> = None;
-        // Until we run out of pairs of nodes to hash, loop and iterate
-        while let Some(n1) = node_iter.next() {
-            // if we have Some() for the first value but None for the second,
-            // this is an odd-numbered list -- duplicate the last value
-            let n2 = match node_iter.next() {
-                Some(n2) => n2,
-                None => n1,
-            };
-            // Concat n1.value and n2.value before hashing
-            if let Some(mut n1_value) = n1.value.clone() {
-                if let Some(n2_value) = n2.value.as_ref() {
-                    let mut bytes = BytesMut::from(&n1_value[..]);
-                    bytes.extend_from_slice(&n2_value[..]);
-                    n1_value = bytes.into();
-                } else {
-                    panic!("unable to take node value as reference");
-                }
-
-                let digest = Bytes::from(HashT::digest(&n1_value).to_vec());
-                // Our new node has the value of the hash of the two children and points to them
-                let new_node = Node {
-                    value: Some(digest),
-                    left: Some(Box::new(n1.clone())),
-                    right: Some(Box::new(n2.clone())),
-                    isroot: false,
-                };
-
-                ret_vec.push(new_node.clone());
-                if verbose {
-                    println!(
-                        "{:?} <-- {:?} --> {:?}",
-                        hex::encode(new_node.clone().left.unwrap().value.unwrap()),
-                        hex::encode(new_node.clone().value.unwrap()),
-                        hex::encode(new_node.clone().right.unwrap().value.unwrap())
-                    );
-                }
-                last_node = Some(new_node);
-            } else {
-                panic!("node value is None while building tree");
-            }
-        }
-        let len = ret_vec.len();
-        // If our length is one, we're the root node -- otherwise, keep chugging
-        if len == 1 {
-            ret_vec[0].isroot = true;
-            if let Some(last_node) = last_node {
-                root = Some(Box::new(last_node));
-            }
-        } else if len > 0 {
-            let (rec_ret_vec, rec_root) = Merkle::<HashT>::build_inner(&ret_vec, verbose);
-            // We've returned from the recursive call -- add child results to ours
-            ret_vec.extend(rec_ret_vec);
-            root = rec_root;
-        }
-        // Pass our constructed return vector and root up the call stack
-        (ret_vec, root)
+    pub fn build_tree(&mut self) {
+        let mut data: Vec<Vec<u8>> = self.leaves.iter().map(|b| Vec::from(*b)).collect();
+        let mut tree = Vec::new();
+        while {
+            data = data
+                .chunks(2)
+                .map(|c| {
+                    let mut c0 = c[0].clone();
+                    c0.extend(if c.len() > 1 {
+                        c[1].clone()
+                    } else {
+                        c[0].clone()
+                    });
+                    HashT::digest(&c0).to_vec()
+                })
+                .collect();
+            tree.push(data.clone());
+            data.len() > 1
+        } {}
+        self.tree = Some(tree);
     }
 }
 
 #[test]
-fn merkle_test() {
+fn test_merkle() {
     use sha2::Sha256;
-    let mut merkle = Merkle::<Sha256>::new();
-    (0u8..3u8).for_each(|v| merkle.add_leaf(&v.to_le_bytes()));
-    let res = merkle.build(true);
+    let mut merkle = MerkleTree::<Sha256>::new();
+    merkle.add_leaf(&[0u8, 1]);
+    merkle.add_leaf(&[2u8, 3]);
+    merkle.add_leaf(&[4u8, 5]);
+    merkle.add_leaf(&[6u8, 7]);
+    merkle.add_leaf(&[8u8, 9]);
+    merkle.add_leaf(&[10u8, 11]);
+    merkle.add_leaf(&[12u8, 13]);
+    merkle.add_leaf(&[14u8, 15]);
+    merkle.add_leaf(&[16u8, 17]);
+    merkle.add_leaf(&[18u8, 19]);
+    merkle.add_leaf(&[18u8, 19]);
+    merkle.add_leaf(&[18u8, 19]);
+    merkle.build_tree();
+    for row in &merkle.tree.unwrap() {
+        println!("--");
+        for node in row {
+            println!("{} ", hex::encode(&node));
+        }
+    }
 }
