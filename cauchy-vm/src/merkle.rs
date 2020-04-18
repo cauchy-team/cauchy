@@ -2,11 +2,9 @@ use digest::Digest;
 use rayon::prelude::*;
 use std::marker::PhantomData;
 
-type RowT<'a> = Vec<&'a [u8]>;
-
 pub struct MerkleTree<'a, HashT: Digest> {
     pub tree: Option<Vec<Vec<Vec<u8>>>>,
-    leaves: RowT<'a>,
+    leaves: Vec<&'a [u8]>,
     _hasher: PhantomData<HashT>,
 }
 
@@ -14,7 +12,7 @@ impl<'a, HashT: Digest> MerkleTree<'a, HashT> {
     pub fn new() -> Self {
         MerkleTree {
             tree: None,
-            leaves: RowT::new(),
+            leaves: Vec::new(),
             _hasher: PhantomData::<HashT>,
         }
     }
@@ -28,15 +26,14 @@ impl<'a, HashT: Digest> MerkleTree<'a, HashT> {
         let mut tree = Vec::new();
         while {
             data = data
-                .par_chunks(2)
+                .par_chunks_mut(2)
                 .map(|c| {
-                    let mut c0 = c[0].clone();
-                    c0.extend(if c.len() > 1 {
+                    c[0].extend(if c.len() > 1 {
                         c[1].clone()
                     } else {
                         c[0].clone()
                     });
-                    HashT::digest(&c0).to_vec()
+                    HashT::digest(&c[0]).to_vec()
                 })
                 .collect();
             tree.insert(0, data.clone());
