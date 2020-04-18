@@ -103,8 +103,6 @@ fn vm_test() {
         script,
         aux_data,
     };
-    let res1 = WasmVM::initialize(&script);
-    assert!(res1.is_ok());
-    let res2 = WasmVM::process_inbox(&script, None);
-    assert!(res2.is_ok());
+    WasmVM::initialize(&script).unwrap();
+    WasmVM::process_inbox(&script, None).unwrap();
 }
