@@ -56,8 +56,8 @@ mod tests {
     fn test_merkle_sha256() {
         build_and_validate(
             MerkleTree::<sha2::Sha256>::new(),
-            200,
-            "8ff9103704f4e7dfee6106551eb439d3ac6bc5cc4873ced8ec33eaf2d42f4c31",
+            1000,
+            "4f52a2051143520841633a6e53f1ad5948a584dcdbc8ea206d8008d1cfe104a9",
         );
     }
 
@@ -65,8 +65,8 @@ mod tests {
     fn test_merkle_blake() {
         build_and_validate(
             MerkleTree::<blake3::Hasher>::new(),
-            200,
-            "0d7bc3ff0245d97e7b6e76c6966ca3a64dd6e43dfc3e9b769b8e87cc792f5c84",
+            1000,
+            "8a610745d95d1a268978ab05d8f3a49798648397af54654736a4a65aac54c8fc",
         );
     }
 
@@ -81,15 +81,17 @@ mod tests {
         merkle.build_tree();
         if let Some(tree) = &merkle.tree {
             for (idx, row) in tree.iter().enumerate() {
-                println!("{} -- ({})", idx, row.len());
-                for node in row {
-                    println!("{}", hex::encode(&node));
+                println!("--Layer {}", idx);
+                if row.len() > 4 {
+                    println!("\t{}", hex::encode(&row[0]));
+                    println!("\t<..{}..>", row.len());
+                } else {
+                    for item in row {
+                        println!("\t{}", hex::encode(&item));
+                    }
                 }
             }
         }
-        assert_eq!(
-            &merkle.root().unwrap()[..],
-            &hex::decode(expected).unwrap()[..]
-        );
+        assert_eq!(&hex::encode(merkle.root().unwrap()), expected);
     }
 }
