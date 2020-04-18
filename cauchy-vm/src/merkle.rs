@@ -38,10 +38,18 @@ impl<'a, HashT: Digest> MerkleTree<'a, HashT> {
                     HashT::digest(&c0).to_vec()
                 })
                 .collect();
-            tree.push(data.clone());
+            tree.insert(0, data.clone());
             data.len() > 1
         } {}
         self.tree = Some(tree);
+    }
+
+    pub fn root(&self) -> Option<&[u8]> {
+        if let Some(tree) = &self.tree {
+            Some(&tree[0][0])
+        } else {
+            None
+        }
     }
 }
 
@@ -49,23 +57,31 @@ impl<'a, HashT: Digest> MerkleTree<'a, HashT> {
 fn test_merkle() {
     use sha2::Sha256;
     let mut merkle = MerkleTree::<Sha256>::new();
-    merkle.add_leaf(&[0u8, 1]);
-    merkle.add_leaf(&[2u8, 3]);
-    merkle.add_leaf(&[4u8, 5]);
-    merkle.add_leaf(&[6u8, 7]);
-    merkle.add_leaf(&[8u8, 9]);
-    merkle.add_leaf(&[10u8, 11]);
-    merkle.add_leaf(&[12u8, 13]);
-    merkle.add_leaf(&[14u8, 15]);
-    merkle.add_leaf(&[16u8, 17]);
-    merkle.add_leaf(&[18u8, 19]);
-    merkle.add_leaf(&[18u8, 19]);
-    merkle.add_leaf(&[18u8, 19]);
+    for _ in 0..200 {
+        merkle.add_leaf(&[]);
+    }
+    // merkle.add_leaf(&[2u8, 3]);
+    // merkle.add_leaf(&[4u8, 5]);
+    // merkle.add_leaf(&[6u8, 7]);
+    // merkle.add_leaf(&[8u8, 9]);
+    // merkle.add_leaf(&[10u8, 11]);
+    // merkle.add_leaf(&[12u8, 13]);
+    // merkle.add_leaf(&[14u8, 15]);
+    // merkle.add_leaf(&[16u8, 17]);
+    // merkle.add_leaf(&[18u8, 19]);
+    // merkle.add_leaf(&[18u8, 19]);
+    // merkle.add_leaf(&[18u8, 19]);
     merkle.build_tree();
-    for row in &merkle.tree.unwrap() {
-        println!("--");
-        for node in row {
-            println!("{} ", hex::encode(&node));
+    if let Some(tree) = &merkle.tree {
+        for row in tree {
+            println!("--");
+            for node in row {
+                println!("{} ", hex::encode(&node));
+            }
         }
     }
+    assert_eq!(
+        &merkle.root().unwrap()[..],
+        &hex::decode("8ff9103704f4e7dfee6106551eb439d3ac6bc5cc4873ced8ec33eaf2d42f4c31").unwrap()[..]
+    );
 }
