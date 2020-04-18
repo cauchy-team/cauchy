@@ -1,4 +1,5 @@
 use digest::Digest;
+use rayon::prelude::*;
 use std::marker::PhantomData;
 
 type RowT<'a> = Vec<&'a [u8]>;
@@ -27,7 +28,7 @@ impl<'a, HashT: Digest> MerkleTree<'a, HashT> {
         let mut tree = Vec::new();
         while {
             data = data
-                .chunks(2)
+                .par_chunks(2)
                 .map(|c| {
                     let mut c0 = c[0].clone();
                     c0.extend(if c.len() > 1 {
