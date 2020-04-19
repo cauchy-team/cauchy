@@ -1,3 +1,4 @@
+mod contract_storage;
 pub mod merkle;
 mod wasm_vm;
 

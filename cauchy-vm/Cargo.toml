@@ -11,6 +11,7 @@ bytes = "*"
 rust-wasm = {git="https://github.com/TheRealBluesun/rust-wasm", tag="v0.1.2"}
 digest = "*"
 rayon = "*"
+serde = {version="1.0", features = ["derive"] }
 
 [dev-dependencies]
 hex = "*"
