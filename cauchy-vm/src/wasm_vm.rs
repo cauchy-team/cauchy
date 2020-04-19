@@ -1,4 +1,4 @@
-use super::{CauchyVM, Result, Script, ScriptStatus, VmErr};
+use super::{CauchyVM, Result, RetVal, Script, ScriptStatus, VmErr};
 use rust_wasm::values::Value;
 use rust_wasm::*;
 use std::convert::TryFrom;
@@ -32,7 +32,7 @@ impl TryFrom<u32> for ScriptStatus {
 pub struct WasmVM {}
 
 impl WasmVM {
-    pub fn initialize(script: &Script<'_>) -> Result<ScriptStatus> {
+    pub fn initialize(script: &Script<'_>) -> Result<RetVal> {
         let func = if let Some(func) = &script.func {
             func
         } else {
@@ -42,7 +42,7 @@ impl WasmVM {
         Self::call_func(script, store, func, None)
     }
 
-    pub fn process_inbox(script: &Script<'_>, message: Option<Vec<u8>>) -> Result<ScriptStatus> {
+    pub fn process_inbox(script: &Script<'_>, message: Option<Vec<u8>>) -> Result<RetVal> {
         let func = if let Some(func) = script.func {
             func
         } else {
@@ -58,7 +58,7 @@ impl WasmVM {
         mut store: Store,
         func: &str,
         message: Option<Vec<u8>>,
-    ) -> Result<ScriptStatus> {
+    ) -> Result<RetVal> {
         let module = decode_module(Cursor::new(&script.script)).unwrap();
         let module_instance = instantiate_module(&mut store, module, &[]).unwrap();
         if let ExternVal::Func(main_addr) = get_export(&module_instance, func).unwrap() {
@@ -70,9 +70,14 @@ impl WasmVM {
                 message.as_ref(),
             );
             println!("func '{}' returned {:X?}", func, res);
-            save_store("some_txid", &store);
             match res {
-                Ok(v) if v.len() == 1 => Ok(ScriptStatus::try_from(v[0])?),
+                Ok(v) if v.len() == 1 => {
+                    save_store("some_txid", &store);
+                    Ok(RetVal {
+                        cost: 0,
+                        script_status: ScriptStatus::try_from(v[0])?,
+                    })
+                }
                 _ => Err(VmErr::Unknown),
             }
         } else {
@@ -82,15 +87,11 @@ impl WasmVM {
 }
 
 impl CauchyVM for WasmVM {
-    fn initialize(&mut self, script: &Script<'_>) -> Result<ScriptStatus> {
+    fn initialize(&mut self, script: &Script<'_>) -> Result<RetVal> {
         WasmVM::initialize(script)
     }
 
-    fn process_inbox(
-        &mut self,
-        script: &Script<'_>,
-        message: Option<Vec<u8>>,
-    ) -> Result<ScriptStatus> {
+    fn process_inbox(&mut self, script: &Script<'_>, message: Option<Vec<u8>>) -> Result<RetVal> {
         WasmVM::process_inbox(script, message)
     }
 }

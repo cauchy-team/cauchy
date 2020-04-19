@@ -19,6 +19,20 @@ pub enum ScriptStatus {
     Killed = 0xDEADBEEF,
 }
 
+pub struct RetVal {
+    cost: u128,
+    script_status: ScriptStatus,
+}
+
+impl RetVal {
+    pub fn status(&self) -> &ScriptStatus {
+        &self.script_status
+    }
+    pub fn cost(&self) -> u128 {
+        self.cost
+    }
+}
+
 #[derive(Debug)]
 pub enum VmErr {
     BadStatus(u32),
@@ -30,10 +44,6 @@ pub fn get_version() -> String {
 }
 
 pub trait CauchyVM {
-    fn initialize(&mut self, script: &Script<'_>) -> Result<ScriptStatus>;
-    fn process_inbox(
-        &mut self,
-        script: &Script<'_>,
-        message: Option<Vec<u8>>,
-    ) -> Result<ScriptStatus>;
+    fn initialize(&mut self, script: &Script<'_>) -> Result<RetVal>;
+    fn process_inbox(&mut self, script: &Script<'_>, message: Option<Vec<u8>>) -> Result<RetVal>;
 }

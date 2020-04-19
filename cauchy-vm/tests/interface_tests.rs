@@ -15,8 +15,8 @@ mod vm_tests {
             aux_data,
         };
         let res = DefaultVM::initialize(&script).unwrap();
-        assert_eq!(res, ScriptStatus::Killed);
+        assert_eq!(res.status(), &ScriptStatus::Killed);
         let res = DefaultVM::process_inbox(&script, None).unwrap();
-        assert_eq!(res, ScriptStatus::Completed);
+        assert_eq!(res.status(), &ScriptStatus::Completed);
     }
 }
