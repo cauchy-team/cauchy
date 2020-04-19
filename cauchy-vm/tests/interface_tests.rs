@@ -7,7 +7,7 @@ mod vm_tests {
 
     #[test]
     fn vm_interface() {
-        let aux_data = Some(vec![0x41, 0x42, 0x43, 0x44, 0x45]);
+        let aux_data = Some(vec![0xEF, 0xBE, 0xAD, 0xDE, 0x45]);
 
         let script = Script {
             func: None,
