@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod vm_tests {
-    use cauchy_vm::{DefaultVM, Script};
+    use cauchy_vm::{DefaultVM, Script, ScriptStatus};
     use std::include_bytes;
 
     const BASIC_WASM: &[u8] = include_bytes!("contract_data.wasm");
@@ -14,7 +14,9 @@ mod vm_tests {
             script: Vec::from(BASIC_WASM),
             aux_data,
         };
-        DefaultVM::initialize(&script).unwrap();
-        DefaultVM::process_inbox(&script, None).unwrap();
+        let res = DefaultVM::initialize(&script).unwrap();
+        assert_eq!(res, ScriptStatus::Killed);
+        let res = DefaultVM::process_inbox(&script, None).unwrap();
+        assert_eq!(res, ScriptStatus::Completed);
     }
 }

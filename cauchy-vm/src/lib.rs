@@ -12,6 +12,7 @@ pub struct Script<'a> {
 
 type Result<T> = std::result::Result<T, VmErr>;
 
+#[derive(Debug, PartialEq)]
 pub enum ScriptStatus {
     Ready = 0x0,
     Completed = 0xFF,
