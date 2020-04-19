@@ -38,7 +38,8 @@ impl WasmVM {
         } else {
             "init"
         };
-        Self::call_func(script, func, None)
+        let store = init_store();
+        Self::call_func(script, store, func, None)
     }
 
     pub fn process_inbox(script: &Script<'_>, message: Option<Vec<u8>>) -> Result<ScriptStatus> {
@@ -47,18 +48,19 @@ impl WasmVM {
         } else {
             "inbox"
         };
-        Self::call_func(script, func, message)
+        let mut store = init_store();
+        restore_store(&mut store, "some_txid");
+        Self::call_func(script, store, func, message)
     }
 
     fn call_func(
         script: &Script<'_>,
+        mut store: Store,
         func: &str,
         message: Option<Vec<u8>>,
     ) -> Result<ScriptStatus> {
         let module = decode_module(Cursor::new(&script.script)).unwrap();
-        let mut store = init_store();
         let module_instance = instantiate_module(&mut store, module, &[]).unwrap();
-        restore_store(&mut store, "some_txid");
         if let ExternVal::Func(main_addr) = get_export(&module_instance, func).unwrap() {
             let res = invoke_func(
                 &mut store,
