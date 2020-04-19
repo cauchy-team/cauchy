@@ -8,4 +8,5 @@ fn main() {
         .arg("--target=wasm32-unknown-unknown")
         .output()
         .expect("failed to build contract");
+    println!("cargo:rerun-if-changed=contractscontract_data/src/main.rs");
 }
