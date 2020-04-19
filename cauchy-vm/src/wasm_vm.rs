@@ -71,11 +71,11 @@ impl WasmVM {
             );
             println!("func '{}' returned {:X?}", func, res);
             match res {
-                Ok(v) if v.len() == 1 => {
+                Ok(v) if v.0.len() == 1 => {
                     save_store("some_txid", &store);
                     Ok(RetVal {
-                        cost: 0,
-                        script_status: ScriptStatus::try_from(v[0])?,
+                        cost: v.1,
+                        script_status: ScriptStatus::try_from(v.0[0])?,
                     })
                 }
                 _ => Err(VmErr::Unknown),
