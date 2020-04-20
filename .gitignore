@@ -9,4 +9,8 @@ cauchy-rpc/example/__pycache__/
 
 cauchy-vm/states/
 
+<<<<<<< Updated upstream
 *.wasm
+=======
+Cargo.lock
+>>>>>>> Stashed changes

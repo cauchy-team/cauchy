@@ -131,7 +131,9 @@ fn vm_test() {
             script,
             aux_data,
         };
-        WasmVM::initialize(&script).unwrap();
-        WasmVM::process_inbox(&script, None).unwrap();
+        let res = WasmVM::initialize(&script).unwrap();
+        assert_eq!(res.status(), &ScriptStatus::Killed);
+        let res = WasmVM::process_inbox(&script, None).unwrap();
+        assert_eq!(res.status(), &ScriptStatus::Completed);
     }
 }
