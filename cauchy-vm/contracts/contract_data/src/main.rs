@@ -51,8 +51,8 @@ pub struct VMDataReader {
 impl VMDataReader {
     pub fn new(data: DataType) -> Self {
         let data_addr = match data {
-            DataType::AuxData => 0x1u32 << 31,
-            DataType::MsgData => 0x1u32 << 30,
+            DataType::MsgData => 0b101u32 << 29,
+            DataType::AuxData => 0b100u32 << 29,
         };
         unsafe {
             // The end_offset is the size + 4 bytes for the size
