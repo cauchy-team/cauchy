@@ -7,5 +7,6 @@ members = [
     "cauchy-miner",
     "cauchy-network",
     "cauchy-rpc",
+    "cauchy-services",
     "cauchy"
 ]

@@ -1,0 +1,24 @@
+[package]
+name = "cauchy-services"
+version = "0.1.0"
+authors = ["Harry Barber <harrybarber@protonmail.com>"]
+edition = "2018"
+
+[dependencies]
+arena = { package = 'cauchy-arena',  path = '../cauchy-arena' }
+consensus = { package = 'cauchy-consensus',  path = '../cauchy-consensus' }
+crypto = { package = 'cauchy-crypto',  path = '../cauchy-crypto' }
+miner = { package = 'cauchy-miner',  path = '../cauchy-miner' }
+network = { package = 'cauchy-network',  path = '../cauchy-network' }
+rpc = { package = 'cauchy-rpc',  path = '../cauchy-rpc' }
+
+bytes = "0.5.4"
+futures = "0.3.4"
+tokio = { version = "0.2.11", features = ["dns", "io-util", "stream", "tcp"] }
+tokio-util = { version = "0.2.0", features = ["codec"] }
+tower-service = "0.3.0"
+tokio-tower = "0.3.6"
+pin-project = "0.4.9"
+
+[dev-dependencies]
+rand = "0.7.3"

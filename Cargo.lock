@@ -283,6 +283,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "cauchy-services"
+version = "0.1.0"
+dependencies = [
+ "bytes 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cauchy-arena 0.1.0",
+ "cauchy-consensus 0.1.0",
+ "cauchy-crypto 0.1.0",
+ "cauchy-miner 0.1.0",
+ "cauchy-network 0.1.0",
+ "cauchy-rpc 0.1.0",
+ "futures 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pin-project 0.4.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio 0.2.13 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio-tower 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio-util 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tower-service 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "cauchy-vm"
 version = "0.1.0"
 dependencies = [
