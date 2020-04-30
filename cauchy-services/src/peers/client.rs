@@ -7,28 +7,34 @@ use futures::{
     task::{Context, Poll},
 };
 use network::{
-    codec::{Status, Transactions}, Message,
+    codec::{Status, Transactions},
+    Message,
 };
-use tokio::{sync::RwLock};
+use pin_project::pin_project;
+use tokio::sync::RwLock;
 use tokio_tower::pipeline::Client;
 use tower_service::Service;
-use pin_project::pin_project;
 
 pub type TowerError = tokio_tower::Error<ClientTransport, Message>;
+
+use super::*;
 
 #[pin_project]
 pub struct ClientTransport {
     #[pin]
     sink: mpsc::Sender<Message>,
     #[pin]
-    stream: mpsc::Receiver<Message>
+    stream: mpsc::Receiver<Message>,
 }
 
 impl Stream for ClientTransport {
     type Item = Result<Message, mpsc::SendError>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        self.project().stream.poll_next(cx).map(|some| some.map(|some| Ok(some)))
+        self.project()
+            .stream
+            .poll_next(cx)
+            .map(|some| some.map(|some| Ok(some)))
     }
 }
 
@@ -60,11 +66,13 @@ pub struct PeerClient {
 }
 
 impl PeerClient {
-    pub fn new(start_time: Instant, addr: SocketAddr, sink: mpsc::Sender<Message>, stream: mpsc::Receiver<Message>) -> Self {
-        let client_transport = ClientTransport {
-            sink,
-            stream
-        };
+    pub fn new(
+        start_time: Instant,
+        addr: SocketAddr,
+        sink: mpsc::Sender<Message>,
+        stream: mpsc::Receiver<Message>,
+    ) -> Self {
+        let client_transport = ClientTransport { sink, stream };
         Self {
             start_time,
             addr,
@@ -161,8 +169,6 @@ impl Service<GetStatus> for PeerClient {
         Box::pin(fut)
     }
 }
-
-pub struct GetMetadata;
 
 pub struct Metadata {
     start_time: Instant,

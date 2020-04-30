@@ -5,23 +5,27 @@ use futures::{
     prelude::*,
     task::{Context, Poll},
 };
-use network::{codec::DecodeError, framing::FramedStream, Message};
+use network::{codec::*, FramedStream, Message};
 use pin_project::pin_project;
 use tower_service::Service;
 
-pub type TowerError = tokio_tower::Error<FramedStream, Message>;
+use super::{
+    player::{Player, TransactionError},
+    GetStatus, MissingStatus,
+};
 
+pub type TowerError = tokio_tower::Error<FramedStream, Message>;
 pub type SplitStream = futures::stream::SplitStream<FramedStream>;
 
 #[pin_project]
-pub struct PeerTransport {
+pub struct Transport {
     #[pin]
     stream: SplitStream,
     #[pin]
     sink: mpsc::Sender<Option<Message>>,
 }
 
-impl Stream for PeerTransport {
+impl Stream for Transport {
     type Item = Result<Message, DecodeError>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -29,7 +33,7 @@ impl Stream for PeerTransport {
     }
 }
 
-impl Sink<Option<Message>> for PeerTransport {
+impl Sink<Option<Message>> for Transport {
     type Error = mpsc::SendError;
 
     fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
@@ -51,7 +55,7 @@ impl Sink<Option<Message>> for PeerTransport {
 
 const BUFFER_SIZE: usize = 128;
 
-impl PeerTransport {
+impl Transport {
     // Inject request stream into FramedStream
     pub fn new(framed: FramedStream, request_stream: mpsc::Receiver<Message>) -> Self {
         let (old_sink, stream) = framed.split();
@@ -82,23 +86,28 @@ impl PeerTransport {
 fn test(framed_stream: FramedStream) {
     let (response_sink, _) = mpsc::channel(BUFFER_SIZE);
     let (_, request_stream) = mpsc::channel(BUFFER_SIZE);
-    let peer = Peer::new(response_sink);
-    let transport = PeerTransport::new(framed_stream, request_stream);
+
+    let socket_addr: std::net::SocketAddr = "0.0.0.0:123".parse().unwrap();
+    let database = Default::default();
+    let player = Player::new(socket_addr, database);
+    let peer = PeerServer::new(response_sink, player);
+    let transport = Transport::new(framed_stream, request_stream);
     let server = tokio_tower::pipeline::Server::new(transport, peer);
     tokio::spawn(server);
 }
 
-pub struct Peer {
-    _database_svc: (),
+#[derive(Clone)]
+pub struct PeerServer {
     _state_svc: (),
+    player: Player,
     response_sink: mpsc::Sender<Message>,
 }
 
-impl Peer {
-    pub fn new(response_sink: mpsc::Sender<Message>) -> Self {
+impl PeerServer {
+    pub fn new(response_sink: mpsc::Sender<Message>, player: Player) -> Self {
         Self {
-            _database_svc: (),
             _state_svc: (),
+            player,
             response_sink,
         }
     }
@@ -106,9 +115,11 @@ impl Peer {
 
 pub enum Error {
     ResponseSend(mpsc::SendError),
+    MissingStatus(MissingStatus),
+    Transaction(TransactionError),
 }
 
-impl Service<Message> for Peer {
+impl Service<Message> for PeerServer {
     type Response = Option<Message>;
     type Error = Error;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
@@ -118,18 +129,32 @@ impl Service<Message> for Peer {
     }
 
     fn call(&mut self, message: Message) -> Self::Future {
-        let mut sink_inner = self.response_sink.clone();
+        let mut this = self.clone();
         let fut = async move {
             match message {
                 // Send responses
-                Message::ReconcileResponse(_) | Message::Status(_) | Message::Transactions(_) => {
-                    sink_inner
-                        .send(message)
-                        .await
-                        .map_err(Error::ResponseSend)
-                        .map(|_| None)
+                Message::ReconcileResponse(_)
+                | Message::Status(_)
+                | Message::Transactions(_)
+                | Message::Transaction(_) => this
+                    .response_sink
+                    .send(message)
+                    .await
+                    .map_err(Error::ResponseSend)
+                    .map(|_| None),
+                Message::Poll => {
+                    let status = this.player.call(GetStatus).await;
+                    status
+                        .map(|ok| Some(Message::Status(ok)))
+                        .map_err(Error::MissingStatus)
                 }
-                x => todo!(),
+                Message::TransactionInv(inv) => {
+                    let transactions: Result<Transactions, _> = this.player.call(inv).await;
+                    transactions
+                        .map(|ok| Some(Message::Transactions(ok)))
+                        .map_err(Error::Transaction)
+                }
+                Message::Reconcile => todo!(),
             }
         };
         Box::pin(fut)
