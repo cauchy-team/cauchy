@@ -11,7 +11,12 @@ message DisconnectRequest {
     string address = 1;
 }
 
+message BanRequest {
+    string address = 1;
+}
+
 service Peering {
     rpc ConnectPeer (ConnectRequest) returns (google.protobuf.Empty);
     rpc DisconnectPeer (DisconnectRequest) returns (google.protobuf.Empty);
+    rpc BanPeer (BanRequest) returns (google.protobuf.Empty);
 }

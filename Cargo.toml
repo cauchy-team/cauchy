@@ -1,11 +1,11 @@
 [workspace]
 members = [
-    "cauchy-arena",
     "cauchy-consensus",
     "cauchy-crypto",
     "cauchy-vm",
     "cauchy-miner",
     "cauchy-network",
     "cauchy-rpc",
+    "cauchy-services",
     "cauchy"
 ]

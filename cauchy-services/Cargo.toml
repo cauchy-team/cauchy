@@ -1,22 +1,25 @@
 [package]
-name = "cauchy"
+name = "cauchy-services"
 version = "0.1.0"
 authors = ["Harry Barber <harrybarber@protonmail.com>"]
 edition = "2018"
 
 [dependencies]
 consensus = { package = 'cauchy-consensus',  path = '../cauchy-consensus' }
-services = { package = 'cauchy-services',  path = '../cauchy-services' }
 crypto = { package = 'cauchy-crypto',  path = '../cauchy-crypto' }
 miner = { package = 'cauchy-miner',  path = '../cauchy-miner' }
 network = { package = 'cauchy-network',  path = '../cauchy-network' }
 rpc = { package = 'cauchy-rpc',  path = '../cauchy-rpc' }
 
 bytes = "0.5.4"
-clap = { version = "2.33.0", features = ["yaml"] }
-config = "0.10.1"
-dirs = "2.0.2"
+evmap = "9.0.1"
 futures = "0.3.4"
-serde = { version = "1.0.104", features = ['derive'] }
-stream-cancel = "0.5.2"
-tokio = { version = "0.2.11", features = ['macros', 'sync'] }
+rand = "0.7.3"
+tokio = { version = "0.2.20", features = ["dns", "io-util", "stream", "tcp"] }
+tokio-util = { version = "0.3.1", features = ["codec"] }
+tower = "0.3.1"
+tokio-tower = "0.3.6"
+pin-project = "0.4.9"
+
+[dev-dependencies]
+rand = "0.7.3"
