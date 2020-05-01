@@ -1,13 +1,12 @@
-use std::{net::SocketAddr, pin::Pin, sync::Arc, time::Instant};
+use std::{pin::Pin, sync::Arc};
 
 use futures::{
     prelude::*,
     task::{Context, Poll},
 };
 use network::{codec::*, FramedStream, Message};
-// use pin_project::pin_project;
 use tokio::sync::RwLock;
-use tower_service::Service;
+use tower::Service;
 
 use super::*;
 use crate::database::{Database, Error as DatabaseError};
@@ -18,19 +17,17 @@ pub type SplitStream = futures::stream::SplitStream<FramedStream>;
 
 #[derive(Clone)]
 pub struct Player {
-    start_time: Instant,
-    addr: SocketAddr,
+    metadata: Arc<Metadata>,
     database: Database,
     _state_svc: (),
     last_status: Arc<RwLock<Option<Status>>>,
 }
 
 impl Player {
-    pub fn new(addr: SocketAddr, database: Database) -> Self {
+    pub fn new(metadata: Arc<Metadata>, database: Database) -> Self {
         Self {
-            start_time: Instant::now(),
+            metadata,
             database,
-            addr,
             _state_svc: (),
             last_status: Default::default(),
         }
@@ -38,7 +35,7 @@ impl Player {
 }
 
 impl Service<GetStatus> for Player {
-    type Response = Status;
+    type Response = (Status, Marker);
     type Error = MissingStatus;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
@@ -48,7 +45,14 @@ impl Service<GetStatus> for Player {
 
     fn call(&mut self, _: GetStatus) -> Self::Future {
         let last_status_inner = self.last_status.clone();
-        let fut = async move { last_status_inner.read().await.clone().ok_or(MissingStatus) };
+        let fut = async move {
+            last_status_inner
+                .read()
+                .await
+                .clone()
+                .ok_or(MissingStatus)
+                .map(move |status| (status, Marker))
+        };
         Box::pin(fut)
     }
 }
@@ -72,13 +76,8 @@ impl Service<TransactionInv> for Player {
     }
 }
 
-pub struct Metadata {
-    start_time: Instant,
-    addr: SocketAddr,
-}
-
 impl Service<GetMetadata> for Player {
-    type Response = Metadata;
+    type Response = Arc<Metadata>;
     type Error = ();
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
 
@@ -87,9 +86,8 @@ impl Service<GetMetadata> for Player {
     }
 
     fn call(&mut self, _: GetMetadata) -> Self::Future {
-        let start_time = self.start_time.clone();
-        let addr = self.addr.clone();
-        let fut = async move { Ok(Metadata { start_time, addr }) };
+        let metadata = self.metadata.clone();
+        let fut = async move { Ok(metadata) };
         Box::pin(fut)
     }
 }

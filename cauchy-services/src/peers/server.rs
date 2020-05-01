@@ -1,4 +1,4 @@
-use std::pin::Pin;
+use std::{pin::Pin, sync::Arc};
 
 use futures::{
     channel::mpsc,
@@ -7,11 +7,12 @@ use futures::{
 };
 use network::{codec::*, FramedStream, Message};
 use pin_project::pin_project;
-use tower_service::Service;
+use tokio::sync::RwLock;
+use tower::Service;
 
 use super::{
     player::{Player, TransactionError},
-    GetStatus, MissingStatus,
+    GetStatus, MissingStatus, *,
 };
 
 pub type TowerError = tokio_tower::Error<FramedStream, Message>;
@@ -87,9 +88,13 @@ fn test(framed_stream: FramedStream) {
     let (response_sink, _) = mpsc::channel(BUFFER_SIZE);
     let (_, request_stream) = mpsc::channel(BUFFER_SIZE);
 
-    let socket_addr: std::net::SocketAddr = "0.0.0.0:123".parse().unwrap();
+    let addr: std::net::SocketAddr = "0.0.0.0:123".parse().unwrap();
     let database = Default::default();
-    let player = Player::new(socket_addr, database);
+    let metadata = std::sync::Arc::new(super::Metadata {
+        addr,
+        start_time: std::time::Instant::now(),
+    });
+    let player = Player::new(metadata, database);
     let peer = PeerServer::new(response_sink, player);
     let transport = Transport::new(framed_stream, request_stream);
     let server = tokio_tower::pipeline::Server::new(transport, peer);
@@ -98,16 +103,16 @@ fn test(framed_stream: FramedStream) {
 
 #[derive(Clone)]
 pub struct PeerServer {
-    _state_svc: (),
     player: Player,
+    perception: Arc<RwLock<Option<Marker>>>,
     response_sink: mpsc::Sender<Message>,
 }
 
 impl PeerServer {
     pub fn new(response_sink: mpsc::Sender<Message>, player: Player) -> Self {
         Self {
-            _state_svc: (),
             player,
+            perception: Default::default(),
             response_sink,
         }
     }
@@ -143,10 +148,12 @@ impl Service<Message> for PeerServer {
                     .map_err(Error::ResponseSend)
                     .map(|_| None),
                 Message::Poll => {
-                    let status = this.player.call(GetStatus).await;
-                    status
-                        .map(|ok| Some(Message::Status(ok)))
-                        .map_err(Error::MissingStatus)
+                    let (status, marker) = match this.player.call(GetStatus).await {
+                        Ok(ok) => ok,
+                        Err(err) => return Err(Error::MissingStatus(err)),
+                    };
+                    *this.perception.clone().write().await = Some(marker);
+                    return Ok(Some(Message::Status(status)));
                 }
                 Message::TransactionInv(inv) => {
                     let transactions: Result<Transactions, _> = this.player.call(inv).await;

@@ -10,7 +10,7 @@ use network::{
 };
 // use pin_project::pin_project;
 use tokio::sync::RwLock;
-use tower_service::Service;
+use tower::Service;
 
 #[derive(Clone, Default)]
 pub struct Database {}
