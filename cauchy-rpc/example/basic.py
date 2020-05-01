@@ -9,7 +9,7 @@ from time import time, sleep
 
 empty = empty_pb2.Empty()
 
-with grpc.insecure_channel('127.0.0.1:2080') as channel:
+with grpc.insecure_channel('127.0.0.1:2081') as channel:
     print("Info stub methods:")
     info_stub = info_pb2_grpc.InfoStub(channel)
 
@@ -31,17 +31,27 @@ with grpc.insecure_channel('127.0.0.1:2080') as channel:
     peering_stub = peering_pb2_grpc.PeeringStub(channel)
 
     print("Connecting to peer...")
-    fake_addr = "127.0.0.1:13321"
+    # fake_addr = "127.0.0.1:13321"
+    # try:
+    #     result = peering_stub.ConnectPeer(
+    #         peering_pb2.ConnectRequest(address=fake_addr))
+    # except Exception as err:
+    #     print("Failed to connect to", fake_addr)
+    #     print(err)
+
+    real_addr = "127.0.0.1:1221"
     try:
         result = peering_stub.ConnectPeer(
-            peering_pb2.ConnectPeerRequest(address=fake_addr))
-    except Exception as err:
-        print("Failed to connect to", fake_addr)
-    real_addr = "127.0.0.1:2080"
-    try:
-        result = peering_stub.ConnectPeer(
-            peering_pb2.ConnectPeerRequest(address=real_addr))
+            peering_pb2.ConnectRequest(address=real_addr))
         print("Connected to", real_addr)
     except Exception as err:
         print("Failed to connect to", real_addr)
-    print(result)
+        print(err)
+
+    try:
+        result = peering_stub.ListPeers(empty)
+        print("Peers:")
+        print(result)
+    except Exception as err:
+        print("Failed list peers", err)
+    

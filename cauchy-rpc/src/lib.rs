@@ -35,7 +35,6 @@ impl RPCBuilder {
         consensus_version: String,
         network_version: String,
         rpc_version: String,
-        arena_version: String,
         miner_version: String,
         crypto_version: String,
     ) -> Self {
@@ -44,7 +43,6 @@ impl RPCBuilder {
             consensus_version,
             network_version,
             rpc_version,
-            arena_version,
             miner_version,
             crypto_version,
         );

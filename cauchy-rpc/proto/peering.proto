@@ -15,7 +15,17 @@ message BanRequest {
     string address = 1;
 }
 
+message Peer {
+    string address = 1;
+    int64 start_time = 2;
+}
+
+message ListPeersResponse {
+    repeated Peer peers = 1;
+}
+
 service Peering {
+    rpc ListPeers (google.protobuf.Empty) returns (ListPeersResponse);
     rpc ConnectPeer (ConnectRequest) returns (google.protobuf.Empty);
     rpc DisconnectPeer (DisconnectRequest) returns (google.protobuf.Empty);
     rpc BanPeer (BanRequest) returns (google.protobuf.Empty);

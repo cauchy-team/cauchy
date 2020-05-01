@@ -19,4 +19,5 @@ dirs = "2.0.2"
 futures = "0.3.4"
 serde = { version = "1.0.106", features = ['derive'] }
 stream-cancel = "0.5.2"
-tokio = { version = "0.2.20", features = ['macros', 'sync'] }
+tokio = { version = "0.2.20", features = ['macros', 'sync', 'rt-threaded'] }
+tower = "0.3.1"
