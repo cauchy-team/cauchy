@@ -10,10 +10,9 @@ use pin_project::pin_project;
 use tokio::sync::RwLock;
 use tower::Service;
 
-use super::{
-    player::{Player, TransactionError},
-    GetStatus, MissingStatus, *,
-};
+use super::{GetStatus, MissingStatus, *};
+use crate::arena::*;
+use crate::player::*;
 
 pub type TowerError = tokio_tower::Error<FramedStream, Message>;
 pub type SplitStream = futures::stream::SplitStream<FramedStream>;
@@ -94,7 +93,8 @@ fn test(framed_stream: FramedStream) {
         addr,
         start_time: std::time::Instant::now(),
     });
-    let player = Player::new(metadata, database);
+    let arena = Arena::default();
+    let player = Player::new(arena, metadata, database);
     let peer = PeerServer::new(response_sink, player);
     let transport = Transport::new(framed_stream, request_stream);
     let server = tokio_tower::pipeline::Server::new(transport, peer);

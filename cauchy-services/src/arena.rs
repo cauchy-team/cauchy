@@ -1,5 +1,6 @@
 use std::{collections::HashMap, net::SocketAddr, pin::Pin, sync::Arc};
 
+use dashmap::DashMap;
 use futures::{
     prelude::*,
     task::{Context, Poll},
@@ -10,8 +11,9 @@ use tower::Service;
 
 use crate::peers::*;
 
+#[derive(Clone, Default)]
 pub struct Arena {
-    peers: HashMap<SocketAddr, client::PeerClient>,
+    peers: Arc<DashMap<SocketAddr, client::PeerClient>>,
 }
 
 impl Service<client::PeerClient> for Arena {
@@ -38,7 +40,7 @@ impl Service<GetAllMetadata> for Arena {
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
 
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        for mut peer in self.peers.values_mut() {
+        for mut peer in self.peers.iter_mut() {
             match <client::PeerClient as Service<GetMetadata>>::poll_ready(&mut peer, cx) {
                 Poll::Pending => return Poll::Pending,
                 Poll::Ready(Err(err)) => return Poll::Ready(Err(err)),
@@ -49,7 +51,7 @@ impl Service<GetAllMetadata> for Arena {
     }
 
     fn call(&mut self, req: GetAllMetadata) -> Self::Future {
-        let calls = self.peers.values_mut().map(|peer| peer.call(GetMetadata));
+        let calls = self.peers.iter_mut().map(|mut peer| peer.call(GetMetadata));
         Box::pin(futures::future::try_join_all(calls))
     }
 }
@@ -62,7 +64,7 @@ impl Service<PollSample> for Arena {
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        for mut peer in self.peers.values_mut() {
+        for mut peer in self.peers.iter_mut() {
             match <client::PeerClient as Service<GetMetadata>>::poll_ready(&mut peer, cx) {
                 Poll::Pending => return Poll::Pending,
                 Poll::Ready(Err(err)) => return Poll::Ready(Err(err)),
@@ -74,16 +76,15 @@ impl Service<PollSample> for Arena {
 
     fn call(&mut self, PollSample(num): PollSample) -> Self::Future {
         // TODO: Remove clone here
-        let sample = self
-            .peers
-            .clone()
-            .into_iter()
-            .map(move |(addr, peer)| (addr, peer))
-            .choose_multiple(&mut OsRng, num);
+        let sample = self.peers.iter().choose_multiple(&mut OsRng, num);
 
-        let collected = sample.into_iter().map(move |(addr, mut peer)| {
-            peer.call(client::GetStatus).map_ok(move |res| (addr, res))
-        });
+        let collected = sample
+            .iter()
+            .map(move |reference| reference.pair())
+            .map(|(x, y)| (x.clone(), y.clone()))
+            .map(move |(addr, mut peer): (SocketAddr, client::PeerClient)| {
+                peer.call(client::GetStatus).map_ok(move |res| (addr, res))
+            });
 
         let fut = futures::future::join_all(collected).map(move |collection: Vec<Result<_, _>>| {
             let filtered_collection: Vec<(SocketAddr, Status)> = collection
@@ -113,7 +114,7 @@ where
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
 
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        for mut peer in self.peers.values_mut() {
+        for mut peer in self.peers.iter_mut() {
             match <client::PeerClient as Service<T>>::poll_ready(&mut peer, cx) {
                 Poll::Pending => return Poll::Pending,
                 Poll::Ready(Err(err)) => return Poll::Ready(Err(DirectedError::Internal(err))),
@@ -124,7 +125,8 @@ where
     }
 
     fn call(&mut self, DirectedQuery(addr, request): DirectedQuery<T>) -> Self::Future {
-        let mut_client: Option<client::PeerClient> = self.peers.get(&addr).cloned();
+        let mut_client: Option<client::PeerClient> =
+            self.peers.get(&addr).map(|some| some.value().clone());
         match mut_client {
             Some(mut some) => {
                 Box::pin(async move { some.call(request).map_err(DirectedError::Internal).await })

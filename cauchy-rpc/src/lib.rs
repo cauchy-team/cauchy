@@ -52,12 +52,8 @@ impl RPCBuilder {
         self
     }
 
-    pub fn peering_service(
-        mut self,
-        connect_sink: peering::ConnectSink,
-        disconnect_sink: peering::DisconnectSink,
-    ) -> Self {
-        let peering_service = peering::PeeringService::new(connect_sink, disconnect_sink);
+    pub fn peering_service(mut self, player: peering::Player) -> Self {
+        let peering_service = peering::PeeringService::new(player);
         self.peering_service = Some(peering_service);
         self
     }

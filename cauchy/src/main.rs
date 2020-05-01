@@ -10,5 +10,5 @@ async fn main() {
     // Collect settings
     let settings = Settings::new(matches).expect("failed to collect settings");
 
-    
+    // Bind
 }
