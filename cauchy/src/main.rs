@@ -1,6 +1,12 @@
+use std::{net::SocketAddr, sync::Arc};
+
 pub mod settings;
 
 use settings::*;
+
+pub fn get_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
 
 #[tokio::main]
 async fn main() {
@@ -10,5 +16,39 @@ async fn main() {
     // Collect settings
     let settings = Settings::new(matches).expect("failed to collect settings");
 
-    
+    // Collect metadata
+    let bind_addr: SocketAddr = settings.bind.parse().expect("failed to parse bind address");
+    let start_time = std::time::SystemTime::now();
+    let metadata = Arc::new(services::Metadata {
+        addr: bind_addr.clone(),
+        start_time,
+    });
+
+    // Construct arena
+    let arena = services::arena::Arena::default();
+
+    // Construct player
+    let database = services::database::Database::default();
+    let player = services::player::Player::new(arena, metadata, database);
+
+    // Create RPC
+    let rpc_addr = settings
+        .rpc_bind
+        .parse()
+        .expect("failed to parse rpc bind address");
+    let rpc_server = rpc::RPCBuilder::default()
+        .peering_service(player.clone())
+        .info_service(
+            get_version(),
+            consensus::get_version(),
+            network::get_version(),
+            rpc::get_version(),
+            miner::get_version(),
+            crypto::get_version(),
+        )
+        .start(rpc_addr);
+
+    let peer_acceptor = player.begin_acceptor();
+    tokio::spawn(rpc_server);
+    peer_acceptor.await;
 }

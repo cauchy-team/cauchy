@@ -2,12 +2,13 @@ mod decoder;
 mod encoder;
 
 use bytes::Bytes;
-use tokio_util::codec::{Decoder, Encoder};
 
 pub use decoder::*;
 pub use encoder::*;
 
 const DIGEST_LEN: usize = 32;
+
+pub const MAGIC_BYTES: [u8; 4] = [1, 2, 3, 4];
 
 /*
 Network messages
@@ -65,6 +66,7 @@ impl Default for MessageCodec {
 
 #[cfg(test)]
 mod tests {
+    use tokio_util::codec::{Decoder as _, Encoder as _};
     use bytes::BytesMut;
     use rand::prelude::*;
 

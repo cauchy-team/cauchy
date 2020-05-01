@@ -6,10 +6,13 @@ edition = "2018"
 
 [dependencies]
 futures = "0.3.4"
-http = "0.2.0"
+http = "0.2.1"
 prost = "0.6.1"
 prost-types = "0.6.1"
-tonic = { version = "0.1.1", features = ["tls", "transport"] }
+services = { package = 'cauchy-services',  path = '../cauchy-services' }
+tonic = { version = "0.2.0", features = ["tls", "transport"] }
+tokio = { version = "0.2.20", features = ["tcp"] }
+tower = "0.3.1"
 
 [build-dependencies]
-tonic-build = "0.1.1"
+tonic-build = "0.2.0"

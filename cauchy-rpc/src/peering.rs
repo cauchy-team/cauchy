@@ -8,36 +8,22 @@ use futures::{
     channel::{mpsc, oneshot},
     prelude::*,
 };
+pub use services::player::*;
+use tokio::net::TcpStream;
 use tonic::{Request, Response, Status};
+use tower::{util::ServiceExt, Service};
 
 use gen::peering_server::{Peering, PeeringServer};
 use gen::*;
 
-pub struct ConnectMessage {
-    pub address: String,
-    pub callback: oneshot::Sender<Result<(), io::Error>>,
-}
-
-pub struct DisconnectMessage {
-    pub address: String,
-    pub callback: oneshot::Sender<Result<(), ()>>,
-}
-
-pub type ConnectSink = mpsc::Sender<ConnectMessage>;
-pub type DisconnectSink = mpsc::Sender<DisconnectMessage>;
-
 #[derive(Clone)]
 pub struct PeeringService {
-    connect_sink: ConnectSink,
-    disconnect_sink: DisconnectSink,
+    player: Player,
 }
 
 impl PeeringService {
-    pub fn new(connect_sink: ConnectSink, disconnect_sink: DisconnectSink) -> Self {
-        PeeringService {
-            connect_sink,
-            disconnect_sink,
-        }
+    pub fn new(player: Player) -> Self {
+        PeeringService { player }
     }
 
     pub fn into_server(self) -> PeeringServer<Self> {
@@ -47,20 +33,31 @@ impl PeeringService {
 
 #[tonic::async_trait]
 impl Peering for PeeringService {
-    async fn connect_peer(&self, request: Request<ConnectRequest>) -> Result<Response<()>, Status> {
-        let address = request.into_inner().address;
-        let (callback, result) = oneshot::channel();
+    async fn list_peers(&self, _: Request<()>) -> Result<Response<ListPeersResponse>, Status> {
+        let query = services::player::ArenaQuery(services::arena::AllQuery(services::GetMetadata));
+        let metadata_map: Result<_, _> = self.player.clone().oneshot(query).await;
+        let peer_list = ListPeersResponse {
+            peers: metadata_map
+                .unwrap()
+                .into_iter()
+                .map(move |(addr, metadata)| Peer {
+                    address: addr.to_string(),
+                    start_time: metadata
+                        .start_time
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_millis() as i64,
+                })
+                .collect(),
+        };
+        Ok(Response::new(peer_list))
+    }
 
-        let new_peer = ConnectMessage { address, callback };
-        self.connect_sink
-            .clone()
-            .send(new_peer)
+    async fn connect_peer(&self, request: Request<ConnectRequest>) -> Result<Response<()>, Status> {
+        let tcp_stream = TcpStream::connect(request.into_inner().address)
             .await
-            .expect("connect channel dropped");
-        result
-            .await
-            .expect("callback channel dropped")
-            .map_err(|err| Status::unavailable(format!("{}", err)))?;
+            .map_err(|err| Status::invalid_argument(err.to_string()))?;
+        self.player.clone().oneshot(tcp_stream).await; // TODO: Handle
 
         Ok(Response::new(()))
     }
@@ -69,21 +66,7 @@ impl Peering for PeeringService {
         &self,
         request: Request<DisconnectRequest>,
     ) -> Result<Response<()>, Status> {
-        let address = request.into_inner().address;
-        let (callback, result) = oneshot::channel();
-
-        let new_peer = DisconnectMessage { address, callback };
-        self.disconnect_sink
-            .clone()
-            .send(new_peer)
-            .await
-            .expect("disconnect channel dropped");
-        result
-            .await
-            .expect("callback channel dropped")
-            .map_err(|_| Status::not_found(""))?;
-
-        Ok(Response::new(()))
+        todo!()
     }
 
     async fn ban_peer(&self, request: Request<BanRequest>) -> Result<Response<()>, Status> {

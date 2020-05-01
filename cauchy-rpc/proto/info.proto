@@ -12,7 +12,6 @@ message VersionResponse {
     string consensus_version = 2;
     string network_version = 3;
     string rpc_version = 4;
-    string arena_version = 5;
     string miner_version = 6;
     string crypto_version = 7;
 }
