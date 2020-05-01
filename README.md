@@ -1,2 +1,2 @@
 # cauchy
-![Rust](https://github.com/cauchy-team/cauchy/workflows/Rust/badge.svg)
+![CI](https://github.com/cauchy-team/cauchy/workflows/CI/badge.svg)
