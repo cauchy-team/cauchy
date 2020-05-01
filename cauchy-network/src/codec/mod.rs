@@ -2,7 +2,6 @@ mod decoder;
 mod encoder;
 
 use bytes::Bytes;
-use tokio_util::codec::{Decoder, Encoder};
 
 pub use decoder::*;
 pub use encoder::*;
@@ -67,6 +66,7 @@ impl Default for MessageCodec {
 
 #[cfg(test)]
 mod tests {
+    use tokio_util::codec::{Decoder as _, Encoder as _};
     use bytes::BytesMut;
     use rand::prelude::*;
 

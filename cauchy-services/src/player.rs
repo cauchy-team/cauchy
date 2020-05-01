@@ -6,9 +6,12 @@ use futures::{
 };
 use network::codec::*;
 use network::{FramedStream, Message};
-use tokio::{net::TcpStream, sync::RwLock};
+use tokio::{
+    net::{TcpListener, TcpStream},
+    sync::RwLock,
+};
 use tokio_tower::pipeline::Server;
-use tower::Service;
+use tower::{util::ServiceExt, Service};
 
 use super::*;
 use crate::{
@@ -38,6 +41,22 @@ impl Player {
             database,
             _state_svc: (),
             last_status: Default::default(),
+        }
+    }
+
+    pub async fn begin_acceptor(self) {
+        // Listen for peers
+        let mut listener = TcpListener::bind(self.metadata.addr)
+            .await
+            .expect("failed to bind address");
+        let filtered_listener = listener.incoming().filter_map(|res| async move {
+            res.ok()
+        });
+        // let mut boxed_listener = Box::pin(self.call_all(filtered_listener));
+        let mut boxed_listener = Box::pin(filtered_listener);
+
+        while let Some(tcp_stream) = boxed_listener.next().await {
+            self.clone().oneshot(tcp_stream).await;
         }
     }
 }

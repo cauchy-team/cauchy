@@ -1,9 +1,5 @@
 use std::{net::SocketAddr, sync::Arc};
 
-use futures::stream::StreamExt;
-use tokio::net::TcpListener;
-use tower::util::ServiceExt;
-
 pub mod settings;
 
 use settings::*;
@@ -11,21 +7,6 @@ use settings::*;
 pub fn get_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
-
-pub async fn begin_acceptor(bind_addr: SocketAddr, player: services::player::Player) {
-    // Listen for peers
-    let mut listener = TcpListener::bind(bind_addr)
-        .await
-        .expect("failed to bind address");
-    let filtered_listener = listener
-        .incoming()
-        .filter_map(|res| async move { res.ok() });
-    let mut response_stream = Box::pin(player.clone().call_all(filtered_listener));
-
-    while let Some(_) = response_stream.next().await {
-
-    }
-} 
 
 #[tokio::main]
 async fn main() {
@@ -67,8 +48,7 @@ async fn main() {
         )
         .start(rpc_addr);
 
-    let peer_acceptor = begin_acceptor(bind_addr, player);
-    tokio::spawn(peer_acceptor);
-    rpc_server.await;
-
+    let peer_acceptor = player.begin_acceptor();
+    tokio::spawn(rpc_server);
+    peer_acceptor.await;
 }

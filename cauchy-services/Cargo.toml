@@ -15,7 +15,7 @@ dashmap = "3.11.1"
 evmap = "9.0.1"
 futures = "0.3.4"
 rand = "0.7.3"
-tokio = { version = "0.2.20", features = ["dns", "io-util", "stream", "tcp"] }
+tokio = { version = "0.2.20", features = ["dns", "io-util", "stream", "tcp", "rt-threaded"] }
 tokio-util = { version = "0.3.1", features = ["codec"] }
 tower = "0.3.1"
 tokio-tower = "0.3.6"
