@@ -1,4 +1,4 @@
-use std::{error::Error, pin::Pin, sync::Arc, time::Instant};
+use std::{error::Error, pin::Pin, sync::Arc};
 
 use futures::{
     channel::mpsc,

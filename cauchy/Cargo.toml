@@ -6,6 +6,7 @@ edition = "2018"
 
 [dependencies]
 consensus = { package = 'cauchy-consensus',  path = '../cauchy-consensus' }
+services = { package = 'cauchy-services',  path = '../cauchy-services' }
 crypto = { package = 'cauchy-crypto',  path = '../cauchy-crypto' }
 miner = { package = 'cauchy-miner',  path = '../cauchy-miner' }
 network = { package = 'cauchy-network',  path = '../cauchy-network' }
