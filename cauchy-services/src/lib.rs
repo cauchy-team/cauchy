@@ -1,5 +1,6 @@
 pub mod arena;
 pub mod database;
+pub mod miner;
 pub mod peer;
 pub mod player;
 

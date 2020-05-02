@@ -1,5 +1,7 @@
 use std::{net::SocketAddr, sync::Arc};
 
+use tower::Service;
+
 pub mod settings;
 
 use settings::*;
@@ -30,6 +32,11 @@ async fn main() {
     // Construct player
     let database = services::database::Database::default();
     let player = services::player::Player::new(arena, metadata, database);
+
+    // Create miners
+    let site = services::miner::Site::default();
+    let mut miner = services::miner::MiningCoordinator::new(3);
+    miner.call(services::miner::NewSession(site)).await;
 
     // Create RPC
     let rpc_addr = settings
