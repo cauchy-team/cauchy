@@ -1,5 +1,9 @@
-use std::sync::Arc;
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc,
+};
 
+use bytes::Bytes;
 use futures::{
     prelude::*,
     task::{Context, Poll},
@@ -16,27 +20,52 @@ use tower::{util::ServiceExt, Service};
 use super::*;
 use crate::{arena::*, peer::*};
 use database::{Database, Error as DatabaseError};
+use miner::MiningCoordinator;
 
 pub type SplitStream = futures::stream::SplitStream<FramedStream>;
+
+#[derive(Clone)]
+pub struct Site {
+    pub oddsketch: Bytes,
+    pub root: Bytes,
+    pub best_nonce: Arc<AtomicU64>,
+}
+
+impl Site {
+    fn to_status(&self) -> Status {
+        Status {
+            oddsketch: self.oddsketch.clone(),
+            root: self.root.clone(),
+            nonce: self.best_nonce.load(Ordering::SeqCst),
+        }
+    }
+}
 
 /// Player service
 #[derive(Clone)]
 pub struct Player {
     arena: Arena,
     metadata: Arc<Metadata>,
+    mining_coordinator: MiningCoordinator,
     database: Database,
     _state_svc: (),
-    last_status: Arc<RwLock<Option<Status>>>,
+    site: Option<Arc<RwLock<Site>>>,
 }
 
 impl Player {
-    pub fn new(arena: Arena, metadata: Arc<Metadata>, database: Database) -> Self {
+    pub fn new(
+        arena: Arena,
+        mining_coordinator: MiningCoordinator,
+        database: Database,
+        metadata: Arc<Metadata>,
+    ) -> Self {
         Self {
             arena,
             metadata,
+            mining_coordinator,
             database,
             _state_svc: (),
-            last_status: Default::default(),
+            site: Default::default(),
         }
     }
 
@@ -118,16 +147,16 @@ impl Service<GetStatus> for Player {
     }
 
     fn call(&mut self, _: GetStatus) -> Self::Future {
-        let last_status_inner = self.last_status.clone();
-        let fut = async move {
-            last_status_inner
-                .read()
-                .await
-                .clone()
-                .ok_or(MissingStatus)
-                .map(move |status| (status, Marker))
-        };
-        Box::pin(fut)
+        if let Some(site_inner) = self.site.clone() {
+            let fut = async move {
+                let site = site_inner.read().await;
+                let status = site.to_status();
+                Ok((status, Marker))
+            };
+            Box::pin(fut)
+        } else {
+            Box::pin(async move { Err(MissingStatus) })
+        }
     }
 }
 
