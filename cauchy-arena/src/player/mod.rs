@@ -14,11 +14,8 @@ use tokio_tower::pipeline::Server;
 use tower::{util::ServiceExt, Service};
 
 use super::*;
-use crate::{
-    arena::*,
-    database::{Database, Error as DatabaseError},
-    peer::*,
-};
+use crate::{arena::*, peer::*};
+use database::{Database, Error as DatabaseError};
 
 pub type TowerError = tokio_tower::Error<FramedStream, Message>;
 

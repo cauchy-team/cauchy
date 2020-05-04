@@ -50,7 +50,7 @@ impl RPCBuilder {
         self
     }
 
-    pub fn peering_service(mut self, player: peering::Player) -> Self {
+    pub fn peering_service(mut self, player: arena::Player) -> Self {
         let peering_service = peering::PeeringService::new(player);
         self.peering_service = Some(peering_service);
         self

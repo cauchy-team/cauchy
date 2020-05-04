@@ -8,10 +8,11 @@ use futures::{
     channel::{mpsc, oneshot},
     prelude::*,
 };
-pub use services::player::*;
 use tokio::net::TcpStream;
 use tonic::{Request, Response, Status};
 use tower::{util::ServiceExt, Service};
+
+use arena::Player;
 
 use gen::peering_server::{Peering, PeeringServer};
 use gen::*;
@@ -34,7 +35,7 @@ impl PeeringService {
 #[tonic::async_trait]
 impl Peering for PeeringService {
     async fn list_peers(&self, _: Request<()>) -> Result<Response<ListPeersResponse>, Status> {
-        let query = services::player::ArenaQuery(services::arena::AllQuery(services::GetMetadata));
+        let query = arena::player::ArenaQuery(arena::AllQuery(arena::GetMetadata));
         let metadata_map: Result<_, _> = self.player.clone().oneshot(query).await;
         let peer_list = ListPeersResponse {
             peers: metadata_map

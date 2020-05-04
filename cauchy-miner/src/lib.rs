@@ -1,77 +1,155 @@
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{
+    atomic::{AtomicBool, AtomicU64, Ordering},
+    Arc,
+};
 
 use crypto::blake3;
-use futures_channel::mpsc;
-use parking_lot::RwLock;
-use rayon::prelude::*;
+use futures_core::task::{Context, Poll};
+use parking_lot::Mutex;
+use tower_service::Service;
+
+pub type FutResponse<T, E> =
+    std::pin::Pin<Box<dyn std::future::Future<Output = Result<T, E>> + Send>>;
+
+pub type Site = [u8; blake3::OUT_LEN];
+pub type Digest = [u8; 32];
+
+pub const WORST_DIGEST: [u8; 32] = [0; 32];
 
 pub fn get_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
 
-pub const MINING_RECORD_BUFFER: usize = 512;
-pub const MINING_CHUNK_SIZE: usize = 2048;
-
-pub struct Mining {
-    site: [u8; blake3::OUT_LEN],
-    pool: rayon::ThreadPool,
+pub struct Miner {
+    pub site: Site,
+    pub best_nonce: Arc<AtomicU64>,
+    best_digest: Arc<Mutex<Digest>>,
+    pool: Arc<rayon::ThreadPool>,
+    terminator: Arc<AtomicBool>,
 }
 
-#[derive(Debug)]
-pub struct MiningRecord {
-    pub nonce: u64,
-    pub digest: [u8; blake3::OUT_LEN],
-}
-
-impl Mining {
+impl Miner {
     /// When `n_threads` is zero then it defaults to the number of CPUs.
-    pub fn new(site: [u8; blake3::OUT_LEN], n_threads: usize) -> Self {
-        let pool = rayon::ThreadPoolBuilder::new()
-            .num_threads(n_threads)
-            .build()
-            .unwrap();
-        Mining { site, pool }
+    pub fn new(
+        site: Site,
+        best_nonce: Arc<AtomicU64>,
+        best_digest: Arc<Mutex<Digest>>,
+        pool: Arc<rayon::ThreadPool>,
+        terminator: Arc<AtomicBool>,
+    ) -> Self {
+        Self {
+            site,
+            best_nonce,
+            best_digest,
+            pool,
+            terminator,
+        }
     }
 
     /// Begin mining at site.
-    pub fn mine(&self, terminator: Arc<AtomicBool>) -> mpsc::Receiver<MiningRecord> {
-        // Record channel
-        let (sender, receiver) = mpsc::channel(MINING_RECORD_BUFFER);
-
-        let current_best: RwLock<[u8; blake3::OUT_LEN]> = RwLock::new([0; blake3::OUT_LEN]);
-
+    pub fn spawn(&self, offset: u64) {
         // Prime hasher with site preimage
         let mut hasher = blake3::Hasher::new();
         hasher.update(&self.site);
 
+        let best_nonce_inner = self.best_nonce.clone();
+        let best_digest = self.best_digest.clone();
+        let terminator_inner = self.terminator.clone();
         self.pool.spawn(move || {
-            (0..std::u64::MAX)
-                .into_par_iter()
-                .map(|i| {
-                    if terminator.load(Ordering::Relaxed) {
-                        None
-                    } else {
-                        Some(i)
-                    }
-                })
-                .while_some()
-                .for_each(|nonce: u64| {
-                    // Add nonce to end of preimage
+            let mut best = WORST_DIGEST;
+            for nonce in offset.. {
+                while false == terminator_inner.load(Ordering::Relaxed) {
                     let digest = *hasher
                         .clone()
                         .update(&nonce.to_be_bytes())
                         .finalize()
                         .as_bytes();
-                    let current_best_read = current_best.read();
-                    if *current_best_read < digest {
-                        drop(current_best_read);
-                        *current_best.write() = digest;
-                        let record = MiningRecord { nonce, digest };
-                        sender.clone().try_send(record).expect("mining buffer full");
+
+                    if best < digest {
+                        best = digest;
+                        let mut best_digest_locked = best_digest.lock();
+                        if *best_digest_locked < digest {
+                            // Store record
+                            best_nonce_inner.store(nonce, Ordering::SeqCst);
+                            *best_digest_locked = digest;
+                        }
                     }
-                })
+                }
+            }
         });
-        receiver
+    }
+}
+
+pub struct GetNonce;
+
+impl Service<GetNonce> for Miner {
+    type Response = u64;
+    type Error = ();
+    type Future = FutResponse<Self::Response, Self::Error>;
+
+    fn poll_ready(&mut self, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, _: GetNonce) -> Self::Future {
+        let best_nonce = self.best_nonce.load(Ordering::SeqCst);
+        Box::pin(async move { Ok(best_nonce) })
+    }
+}
+
+pub struct MiningCoordinator {
+    pool: Arc<rayon::ThreadPool>,
+    terminators: Arc<Mutex<Vec<Arc<AtomicBool>>>>,
+    n_workers: u32,
+}
+
+impl MiningCoordinator {
+    pub fn new(n_workers: u32) -> Self {
+        let pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(n_workers as usize)
+            .build()
+            .unwrap();
+        Self {
+            pool: Arc::new(pool),
+            terminators: Default::default(),
+            n_workers,
+        }
+    }
+}
+
+pub struct NewSession(pub Site);
+
+impl Service<NewSession> for MiningCoordinator {
+    type Response = Arc<AtomicU64>;
+    type Error = ();
+    type Future = FutResponse<Self::Response, Self::Error>;
+
+    fn poll_ready(&mut self, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, NewSession(site): NewSession) -> Self::Future {
+        let mut terminators = self.terminators.lock();
+        while let Some(atomic) = terminators.pop() {
+            atomic.store(true, Ordering::Relaxed);
+        }
+        let best_nonce = Arc::new(AtomicU64::new(0));
+        let best_digest = Arc::new(Mutex::new(WORST_DIGEST));
+        let terminator = Arc::new(AtomicBool::new(false));
+        let miner = Miner::new(
+            site,
+            best_nonce.clone(),
+            best_digest,
+            self.pool.clone(),
+            terminator,
+        );
+
+        let n_workers = self.n_workers as u64;
+        for i in 0..n_workers {
+            let offset = (std::u64::MAX / n_workers) * i;
+            miner.spawn(offset);
+        }
+
+        Box::pin(async move { Ok(best_nonce) })
     }
 }

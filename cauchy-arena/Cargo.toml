@@ -1,11 +1,12 @@
 [package]
-name = "cauchy-services"
+name = "cauchy-arena"
 version = "0.1.0"
 authors = ["Harry Barber <harrybarber@protonmail.com>"]
 edition = "2018"
 
 [dependencies]
 consensus = { package = 'cauchy-consensus',  path = '../cauchy-consensus' }
+database = { package = 'cauchy-database', path = '../cauchy-database' }
 crypto = { package = 'cauchy-crypto',  path = '../cauchy-crypto' }
 miner = { package = 'cauchy-miner',  path = '../cauchy-miner' }
 network = { package = 'cauchy-network',  path = '../cauchy-network' }
@@ -22,6 +23,3 @@ tower = "0.3.1"
 tokio-tower = "0.3.6"
 parking_lot = "0.10.2"
 pin-project = "0.4.9"
-
-[dev-dependencies]
-rand = "0.7.3"

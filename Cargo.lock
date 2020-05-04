@@ -205,12 +205,13 @@ name = "cauchy"
 version = "0.1.0"
 dependencies = [
  "bytes 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cauchy-arena 0.1.0",
  "cauchy-consensus 0.1.0",
  "cauchy-crypto 0.1.0",
+ "cauchy-database 0.1.0",
  "cauchy-miner 0.1.0",
  "cauchy-network 0.1.0",
  "cauchy-rpc 0.1.0",
- "cauchy-services 0.1.0",
  "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "config 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "dirs 2.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -218,6 +219,29 @@ dependencies = [
  "serde 1.0.106 (registry+https://github.com/rust-lang/crates.io-index)",
  "stream-cancel 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio 0.2.20 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tower 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "cauchy-arena"
+version = "0.1.0"
+dependencies = [
+ "bytes 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cauchy-consensus 0.1.0",
+ "cauchy-crypto 0.1.0",
+ "cauchy-database 0.1.0",
+ "cauchy-miner 0.1.0",
+ "cauchy-network 0.1.0",
+ "dashmap 3.11.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "evmap 9.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "futures 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parking_lot 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pin-project 0.4.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rayon 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio 0.2.20 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio-tower 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio-util 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "tower 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -238,15 +262,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "cauchy-database"
+version = "0.1.0"
+dependencies = [
+ "tower-service 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "cauchy-miner"
 version = "0.1.0"
 dependencies = [
  "cauchy-crypto 0.1.0",
- "futures-channel 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "futures-util 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "futures-core 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rayon 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "tokio 0.2.20 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio-tower 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tower 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -267,7 +298,7 @@ dependencies = [
 name = "cauchy-rpc"
 version = "0.1.0"
 dependencies = [
- "cauchy-services 0.1.0",
+ "cauchy-arena 0.1.0",
  "futures 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "http 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "prost 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -275,28 +306,6 @@ dependencies = [
  "tokio 0.2.20 (registry+https://github.com/rust-lang/crates.io-index)",
  "tonic 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tonic-build 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "tower 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "cauchy-services"
-version = "0.1.0"
-dependencies = [
- "bytes 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "cauchy-consensus 0.1.0",
- "cauchy-crypto 0.1.0",
- "cauchy-miner 0.1.0",
- "cauchy-network 0.1.0",
- "dashmap 3.11.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "evmap 9.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "futures 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "parking_lot 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "pin-project 0.4.9 (registry+https://github.com/rust-lang/crates.io-index)",
- "rand 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "rayon 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "tokio 0.2.20 (registry+https://github.com/rust-lang/crates.io-index)",
- "tokio-tower 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "tokio-util 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "tower 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
