@@ -13,6 +13,7 @@ use std::io;
 use bytes::buf::Buf;
 use bytes::BytesMut;
 use tokio_util::codec::Decoder;
+use tracing::trace;
 
 use super::*;
 
@@ -50,7 +51,6 @@ impl StatusState {
                 Ok(None)
             } else {
                 let oddsketch_len = src.get_u16();
-                println!("oddsketch length {}", oddsketch_len);
                 self.oddsketch_len = Some(oddsketch_len);
 
                 Ok(Self::decode_inner(oddsketch_len, src))
@@ -251,6 +251,7 @@ impl Decoder for MessageCodec {
 
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Message>, DecodeError> {
         if let DecodeState::Type = self.state {
+            trace!("decoding type; {:?}", src);
             if self.decode_type(src)?.is_none() {
                 return Ok(None);
             }
@@ -258,40 +259,45 @@ impl Decoder for MessageCodec {
 
         match &mut self.state {
             DecodeState::Poll => {
-                println!("recv raw poll msg...");
+                trace!("decoding poll; {:?}", src);
                 self.state = DecodeState::Type;
                 Ok(Some(Message::Poll))
             }
             DecodeState::Status(inner_state) => inner_state.decode(src).map(|opt| {
-                println!("recv raw status msg...");
+                trace!("decoding status; {:?}", src);
                 opt.map(|status| {
                     self.state = DecodeState::Type;
                     Message::Status(status)
                 })
             }),
             DecodeState::Reconcile => {
+                trace!("decoding reconcile; {:?}", src);
                 self.state = DecodeState::Type;
                 Ok(Some(Message::Reconcile))
             }
             DecodeState::ReconcileResponse(inner_state) => inner_state.decode(src).map(|opt| {
+                trace!("decoding reconcile response; {:?}", src);
                 opt.map(|txs| {
                     self.state = DecodeState::Type;
                     Message::ReconcileResponse(txs)
                 })
             }),
             DecodeState::Transaction(inner_state) => inner_state.decode(src).map(|opt| {
+                trace!("decoding reconcile response; {:?}", src);
                 opt.map(|txs| {
                     self.state = DecodeState::Type;
                     Message::Transaction(txs)
                 })
             }),
             DecodeState::TransactionInv(inner_state) => inner_state.decode(src).map(|opt| {
+                trace!("decoding transaction inv; {:?}", src);
                 opt.map(|inv| {
                     self.state = DecodeState::Type;
                     Message::TransactionInv(inv)
                 })
             }),
             DecodeState::Transactions(inner_state) => inner_state.decode(src).map(|opt| {
+                trace!("decoding transactions; {:?}", src);
                 opt.map(|txs| {
                     self.state = DecodeState::Type;
                     Message::Transactions(txs)

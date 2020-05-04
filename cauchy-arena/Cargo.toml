@@ -22,4 +22,5 @@ tokio-util = { version = "0.3.1", features = ["codec"] }
 tower = "0.3.1"
 tokio-tower = "0.3.6"
 parking_lot = "0.10.2"
-pin-project = "0.4.9"
+pin-project = "0.4.10"
+tracing-tower = { git = "https://github.com/tokio-rs/tracing.git" }

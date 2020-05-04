@@ -1,6 +1,8 @@
+pub mod settings;
+
 use std::{net::SocketAddr, sync::Arc};
 
-pub mod settings;
+use tracing::Level;
 
 use settings::*;
 
@@ -10,6 +12,12 @@ pub fn get_version() -> String {
 
 #[tokio::main]
 async fn main() {
+    // Init logging
+
+    let env_filter = tracing_subscriber::EnvFilter::from_default_env();
+    tracing_subscriber::fmt::Subscriber::builder()
+        .with_env_filter(env_filter)
+        .init();
     // Initialize CLI app and get matches
     let matches = app_init_and_matches();
 

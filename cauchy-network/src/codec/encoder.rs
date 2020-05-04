@@ -3,6 +3,7 @@ use std::io;
 use bytes::buf::BufMut;
 use bytes::BytesMut;
 use tokio_util::codec::Encoder;
+use tracing::trace;
 
 use super::*;
 
@@ -21,15 +22,13 @@ impl Encoder<Message> for MessageCodec {
     type Error = EncodingError;
 
     fn encode(&mut self, item: Message, dst: &mut BytesMut) -> Result<(), Self::Error> {
+        trace!("encoding {:?}", item);
         match item {
             Message::Poll => {
-                println!("sending raw poll msg...");
                 dst.reserve(1);
-
                 dst.put_u8(0)
             }
             Message::Status(status) => {
-                println!("sending raw status msg...");
                 let oddsketch_len = status.oddsketch.len();
                 dst.reserve(1 + 4 + oddsketch_len + DIGEST_LEN + 8);
 
@@ -95,6 +94,7 @@ impl Encoder<Message> for MessageCodec {
                 }
             }
         }
+        trace!("encoding successful; {:?}", dst);
         Ok(())
     }
 }
