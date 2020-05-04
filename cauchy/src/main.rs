@@ -1,5 +1,7 @@
 use std::{net::SocketAddr, sync::Arc};
 
+use tower::Service;
+
 pub mod settings;
 
 use settings::*;
@@ -14,28 +16,33 @@ async fn main() {
     let matches = app_init_and_matches();
 
     // Collect settings
-    let settings = Settings::new(matches).expect("failed to collect settings");
+    let settings = Settings::new(matches).expect("Failed to collect settings");
 
     // Collect metadata
-    let bind_addr: SocketAddr = settings.bind.parse().expect("failed to parse bind address");
+    let bind_addr: SocketAddr = settings.bind.parse().expect("Failed to parse bind address");
     let start_time = std::time::SystemTime::now();
-    let metadata = Arc::new(services::Metadata {
+    let metadata = Arc::new(arena::Metadata {
         addr: bind_addr.clone(),
         start_time,
     });
 
     // Construct arena
-    let arena = services::arena::Arena::default();
+    let arena = arena::Arena::default();
 
     // Construct player
-    let database = services::database::Database::default();
-    let player = services::player::Player::new(arena, metadata, database);
+    let database = database::Database::default();
+    let player = arena::Player::new(arena, metadata, database);
+
+    // Create miners
+    let site = miner::Site::default();
+    let mut miner = miner::MiningCoordinator::new(3);
+    miner.call(miner::NewSession(site)).await;
 
     // Create RPC
     let rpc_addr = settings
         .rpc_bind
         .parse()
-        .expect("failed to parse rpc bind address");
+        .expect("Failed to parse rpc bind address");
     let rpc_server = rpc::RPCBuilder::default()
         .peering_service(player.clone())
         .info_service(
@@ -46,6 +53,7 @@ async fn main() {
             miner::get_version(),
             crypto::get_version(),
         )
+        .mining_service(miner)
         .start(rpc_addr);
 
     let peer_acceptor = player.begin_acceptor();

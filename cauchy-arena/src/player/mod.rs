@@ -5,7 +5,7 @@ use futures::{
     task::{Context, Poll},
 };
 use network::codec::*;
-use network::{FramedStream, Message};
+use network::FramedStream;
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::RwLock,
@@ -14,16 +14,12 @@ use tokio_tower::pipeline::Server;
 use tower::{util::ServiceExt, Service};
 
 use super::*;
-use crate::{
-    arena::*,
-    database::{Database, Error as DatabaseError},
-    peer::*,
-};
-
-pub type TowerError = tokio_tower::Error<FramedStream, Message>;
+use crate::{arena::*, peer::*};
+use database::{Database, Error as DatabaseError};
 
 pub type SplitStream = futures::stream::SplitStream<FramedStream>;
 
+/// Player service
 #[derive(Clone)]
 pub struct Player {
     arena: Arena,
@@ -49,9 +45,9 @@ impl Player {
         let mut listener = TcpListener::bind(self.metadata.addr)
             .await
             .expect("failed to bind address");
-        let filtered_listener = listener.incoming().filter_map(|res| async move {
-            res.ok()
-        });
+        let filtered_listener = listener
+            .incoming()
+            .filter_map(|res| async move { res.ok() });
         // let mut boxed_listener = Box::pin(self.call_all(filtered_listener));
         let mut boxed_listener = Box::pin(filtered_listener);
 
@@ -145,12 +141,12 @@ impl Service<TransactionInv> for Player {
     type Error = TransactionError;
     type Future = FutResponse<Self::Response, Self::Error>;
 
-    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         // TODO: Check for database locks
         Poll::Ready(Ok(()))
     }
 
-    fn call(&mut self, inv: TransactionInv) -> Self::Future {
+    fn call(&mut self, _inv: TransactionInv) -> Self::Future {
         unimplemented!()
     }
 }
@@ -171,6 +167,26 @@ impl Service<GetMetadata> for Player {
     }
 }
 
+#[derive(Debug)]
+pub enum ReconcileError {
+    Database(DatabaseError),
+}
+
+impl Service<(Marker, Minisketch)> for Player {
+    type Response = Transactions;
+    type Error = ReconcileError;
+    type Future = FutResponse<Self::Response, Self::Error>;
+
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, (_marker, _minisketch): (Marker, Minisketch)) -> Self::Future {
+        todo!()
+    }
+}
+
+/// Query arena
 pub struct ArenaQuery<T>(pub T);
 
 impl<T> Service<ArenaQuery<T>> for Player

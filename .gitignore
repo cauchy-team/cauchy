@@ -1,7 +1,7 @@
 /target
 **/*.rs.bk
-/cauchy-rpc/example/*_pb2_grpc.py
-/cauchy-rpc/example/*_pb2.py
+/cauchy-rpc/examples/*_pb2_grpc.py
+/cauchy-rpc/examples/*_pb2.py
 
 .vscode/
 

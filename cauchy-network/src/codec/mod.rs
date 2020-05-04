@@ -66,9 +66,9 @@ impl Default for MessageCodec {
 
 #[cfg(test)]
 mod tests {
-    use tokio_util::codec::{Decoder as _, Encoder as _};
     use bytes::BytesMut;
     use rand::prelude::*;
+    use tokio_util::codec::{Decoder as _, Encoder as _};
 
     use super::*;
 

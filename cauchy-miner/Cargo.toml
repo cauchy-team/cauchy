@@ -5,11 +5,10 @@ authors = ["Harry Barber <harrybarber@protonmail.com>"]
 edition = "2018"
 
 [dependencies]
-crypto = { package = "cauchy-crypto", path = "../cauchy-crypto" }
-futures-channel = "0.3.4"
-parking_lot = "0.10.2"
-rayon = "1.3.0"
+crypto = { package = 'cauchy-crypto',  path = '../cauchy-crypto' }
 
-[dev-dependencies]
-tokio = { version = "0.2.20", features = ["macros", "rt-core"] }
-futures-util = "0.3.4"
+futures-core = "0.3.4"
+rayon = "1.3.0"
+tower-service = "0.3.0"
+tokio = "0.2.20"
+parking_lot = "0.10.2"

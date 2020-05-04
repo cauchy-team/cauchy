@@ -5,11 +5,13 @@ authors = ["Harry Barber <harrybarber@protonmail.com>"]
 edition = "2018"
 
 [dependencies]
+arena = { package = 'cauchy-arena',  path = '../cauchy-arena' }
+miner = { package = 'cauchy-miner',  path = '../cauchy-miner' }
+
 futures = "0.3.4"
 http = "0.2.1"
 prost = "0.6.1"
 prost-types = "0.6.1"
-services = { package = 'cauchy-services',  path = '../cauchy-services' }
 tonic = { version = "0.2.0", features = ["tls", "transport"] }
 tokio = { version = "0.2.20", features = ["tcp"] }
 tower = "0.3.1"

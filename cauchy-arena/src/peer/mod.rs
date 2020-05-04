@@ -8,14 +8,17 @@ use futures::{
 use network::codec::{Status, Transactions};
 use network::{codec::*, FramedStream, Message};
 use pin_project::pin_project;
-use tokio::{net::TcpStream, sync::RwLock};
+use tokio::{
+    net::TcpStream,
+    sync::{Mutex, RwLock},
+};
 use tokio_tower::pipeline::Client;
 use tokio_util::codec::Framed;
 use tower::buffer::Buffer;
 use tower::Service;
 
 use super::*;
-use crate::player::*;
+use crate::player;
 
 pub type TowerError<T> = tokio_tower::Error<T, Message>;
 
@@ -143,8 +146,8 @@ impl Sink<Message> for ClientTransport {
 #[derive(Clone)]
 pub struct Peer {
     metadata: Arc<Metadata>,
-    player: Player,
-    perception: Arc<RwLock<Option<Marker>>>,
+    player: player::Player,
+    perception: Arc<Mutex<Option<Marker>>>,
     response_sink: mpsc::Sender<Message>,
     last_status: Arc<RwLock<Option<Status>>>,
     client_svc: Buffer<Client<ClientTransport, TowerError<ClientTransport>, Message>, Message>,
@@ -152,7 +155,7 @@ pub struct Peer {
 
 impl Peer {
     pub fn new(
-        player: Player,
+        player: player::Player,
         tcp_stream: TcpStream,
     ) -> Result<(Self, ServerTransport), std::io::Error> {
         let addr = tcp_stream.peer_addr()?;
@@ -189,7 +192,11 @@ impl Peer {
 pub enum Error {
     ResponseSend(mpsc::SendError),
     MissingStatus(MissingStatus),
-    Transaction(TransactionError),
+    Reconcile(player::ReconcileError),
+    Transaction(player::TransactionError),
+    GetStatus(MissingStatus),
+    TransactionInv(player::TransactionError),
+    UnexpectedReconcile,
 }
 
 impl Service<Message> for Peer {
@@ -197,7 +204,25 @@ impl Service<Message> for Peer {
     type Error = Error;
     type Future = FutResponse<Self::Response, Self::Error>;
 
-    fn poll_ready(&mut self, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        match <player::Player as Service<GetStatus>>::poll_ready(&mut self.player, cx) {
+            Poll::Ready(Ok(_)) => (),
+            Poll::Ready(Err(err)) => return Poll::Ready(Err(Error::GetStatus(err))),
+            Poll::Pending => return Poll::Pending,
+        }
+
+        match <player::Player as Service<TransactionInv>>::poll_ready(&mut self.player, cx) {
+            Poll::Ready(Ok(_)) => (),
+            Poll::Ready(Err(err)) => return Poll::Ready(Err(Error::TransactionInv(err))),
+            Poll::Pending => return Poll::Pending,
+        }
+
+        match <player::Player as Service<(Marker, Minisketch)>>::poll_ready(&mut self.player, cx) {
+            Poll::Ready(Ok(_)) => (),
+            Poll::Ready(Err(err)) => return Poll::Ready(Err(Error::Reconcile(err))),
+            Poll::Pending => return Poll::Pending,
+        }
+
         Poll::Ready(Ok(()))
     }
 
@@ -220,7 +245,7 @@ impl Service<Message> for Peer {
                         Ok(ok) => ok,
                         Err(err) => return Err(Error::MissingStatus(err)),
                     };
-                    *this.perception.clone().write().await = Some(marker);
+                    *this.perception.clone().lock().await = Some(marker);
                     return Ok(Some(Message::Status(status)));
                 }
                 Message::TransactionInv(inv) => {
@@ -229,7 +254,19 @@ impl Service<Message> for Peer {
                         .map(|ok| Some(Message::Transactions(ok)))
                         .map_err(Error::Transaction)
                 }
-                Message::Reconcile => todo!(),
+                Message::Reconcile => {
+                    let marker = this
+                        .perception
+                        .lock()
+                        .await
+                        .take()
+                        .ok_or(Error::UnexpectedReconcile)?;
+                    let transactions: Result<Transactions, _> =
+                        this.player.call((marker, Minisketch)).await;
+                    transactions
+                        .map(|ok| Some(Message::Transactions(ok)))
+                        .map_err(Error::Reconcile)
+                }
             }
         };
         Box::pin(fut)
