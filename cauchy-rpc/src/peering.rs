@@ -61,7 +61,7 @@ impl Peering for PeeringService {
             .clone()
             .oneshot(query)
             .await
-            .map_err(|err| Status::unavailable("todo display for this error"))?;
+            .map_err(|_err| Status::unavailable("todo display for this error"))?;
         let poll_response = PollResponse {
             oddsketch: status.oddsketch.to_vec(),
             root: status.root.to_vec(),

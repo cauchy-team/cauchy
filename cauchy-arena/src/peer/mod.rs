@@ -6,12 +6,8 @@ pub use server::*;
 
 use std::{net::SocketAddr, sync::Arc, time::SystemTime};
 
-use futures::{
-    channel::mpsc,
-    prelude::*,
-    task::{Context, Poll},
-};
-use network::codec::{Status, Transactions};
+use futures::channel::mpsc;
+use network::codec::Status;
 use network::{codec::*, Message};
 use tokio::{
     net::TcpStream,
@@ -20,7 +16,6 @@ use tokio::{
 use tokio_tower::pipeline::Client;
 use tokio_util::codec::Framed;
 use tower::buffer::Buffer;
-use tower::Service;
 
 use super::*;
 use crate::player;
@@ -77,8 +72,12 @@ impl Peer {
         ))
     }
 
-    pub fn client_svc(&mut self) -> &mut ClientService {
-        &mut self.client_svc
+    pub fn get_metadata(&self) -> Arc<Metadata> {
+        self.metadata.clone()
+    }
+
+    pub fn get_socket(&self) -> SocketAddr {
+        self.metadata.addr.clone()
     }
 }
 
@@ -90,14 +89,4 @@ pub enum Error {
     GetStatus(MissingStatus),
     TransactionInv(player::TransactionError),
     UnexpectedReconcile,
-}
-
-impl Peer {
-    pub fn get_metadata(&self) -> Arc<Metadata> {
-        self.metadata.clone()
-    }
-
-    pub fn get_socket(&self) -> SocketAddr {
-        self.metadata.addr.clone()
-    }
 }

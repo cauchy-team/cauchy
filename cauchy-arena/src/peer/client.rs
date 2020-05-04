@@ -14,8 +14,6 @@ use tower::Service;
 use super::*;
 use crate::FutResponse;
 
-const BUFFER_SIZE: usize = 128;
-
 #[pin_project]
 pub struct ClientTransport {
     /// Incoming responses
@@ -89,7 +87,7 @@ impl Service<PollStatus> for Peer {
 
     fn call(&mut self, _: PollStatus) -> Self::Future {
         println!("Sending poll message to client");
-        let response_fut = self.client_svc().call(Message::Poll);
+        let response_fut = self.client_svc.call(Message::Poll);
 
         let last_status_inner = self.last_status.clone();
         let fut = async move {
