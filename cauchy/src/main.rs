@@ -1,7 +1,5 @@
 use std::{net::SocketAddr, sync::Arc};
 
-use tower::Service;
-
 pub mod settings;
 
 use settings::*;
