@@ -5,7 +5,7 @@ use futures::{
     task::{Context, Poll},
 };
 use network::codec::*;
-use network::{FramedStream, Message};
+use network::FramedStream;
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::RwLock,
@@ -16,8 +16,6 @@ use tower::{util::ServiceExt, Service};
 use super::*;
 use crate::{arena::*, peer::*};
 use database::{Database, Error as DatabaseError};
-
-pub type TowerError = tokio_tower::Error<FramedStream, Message>;
 
 pub type SplitStream = futures::stream::SplitStream<FramedStream>;
 

@@ -1,0 +1,16 @@
+syntax = "proto3";
+package mining;
+
+import "google/protobuf/empty.proto";
+
+message MiningInfoResponse {
+    uint32 n_workers = 1;
+    bytes site = 2;
+    uint64 best_nonce = 3;
+    bytes best_digest = 4;
+}
+
+service Mining {
+    rpc MiningInfo (google.protobuf.Empty) returns (MiningInfoResponse);
+}
+

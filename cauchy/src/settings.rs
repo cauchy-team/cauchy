@@ -2,7 +2,7 @@ use clap::{crate_authors, crate_description, crate_name, crate_version, App, Arg
 use config::{Config, ConfigError, File};
 use serde::Deserialize;
 
-const FOLDER_DIR: &str = ".keyserver";
+const FOLDER_DIR: &str = ".cauchy";
 
 pub fn app_init_and_matches<'a>() -> ArgMatches<'a> {
     App::new(crate_name!())

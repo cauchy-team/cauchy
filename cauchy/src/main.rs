@@ -53,6 +53,7 @@ async fn main() {
             miner::get_version(),
             crypto::get_version(),
         )
+        .mining_service(miner)
         .start(rpc_addr);
 
     let peer_acceptor = player.begin_acceptor();

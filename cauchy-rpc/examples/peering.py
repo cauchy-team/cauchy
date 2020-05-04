@@ -1,9 +1,8 @@
 import grpc
 
-import info_pb2
-import info_pb2_grpc
 import peering_pb2
 import peering_pb2_grpc
+
 from google.protobuf import empty_pb2
 from time import time, sleep
 

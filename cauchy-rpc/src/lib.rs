@@ -1,4 +1,5 @@
 pub mod info;
+pub mod mining;
 pub mod peering;
 
 use std::{net::SocketAddr, time::Duration};
@@ -16,6 +17,7 @@ pub struct RPCBuilder {
     keep_alive: Option<Duration>,
     info_service: Option<info::InfoService>,
     peering_service: Option<peering::PeeringService>,
+    mining_service: Option<mining::MiningService>,
 }
 
 impl RPCBuilder {
@@ -55,6 +57,12 @@ impl RPCBuilder {
         self.peering_service = Some(peering_service);
         self
     }
+
+    pub fn mining_service(mut self, coordinator: miner::MiningCoordinator) -> Self {
+        let mining_service = mining::MiningService::new(coordinator);
+        self.mining_service = Some(mining_service);
+        self
+    }
 }
 
 impl RPCBuilder {
@@ -63,9 +71,11 @@ impl RPCBuilder {
 
         let info_service = self.info_service.expect("info service is required");
         let peering_service = self.peering_service.expect("peer service is required");
+        let mining_service = self.mining_service.expect("mining service is required");
         let router = builder
             .add_service(info_service.into_server())
-            .add_service(peering_service.into_server());
+            .add_service(peering_service.into_server())
+            .add_service(mining_service.into_server());
 
         if let Some(shutdown_signal) = self.shutdown_signal {
             router
