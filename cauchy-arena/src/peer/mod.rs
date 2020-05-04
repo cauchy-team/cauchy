@@ -26,8 +26,10 @@ pub type SplitStream = futures::stream::SplitStream<FramedStream>;
 
 #[pin_project]
 pub struct ServerTransport {
+    /// Incoming messages
     #[pin]
     stream: SplitStream,
+    /// Outgoing messages
     #[pin]
     sink: mpsc::Sender<Option<Message>>,
 }
@@ -72,7 +74,10 @@ impl ServerTransport {
         let sink_inner = sink.clone();
         let fut_a = async move {
             let forward = request_stream
-                .map(move |ok: Message| Ok(Some(ok)))
+                .map(move |ok: Message| {
+                    println!("forwarding message {:?}", ok);
+                    Ok(Some(ok))
+                })
                 .forward(sink_inner);
             forward.await
         };
@@ -229,6 +234,7 @@ impl Service<Message> for Peer {
     fn call(&mut self, message: Message) -> Self::Future {
         let mut this = self.clone();
         let fut = async move {
+            println!("got message {:?}", message);
             match message {
                 // Send responses
                 Message::ReconcileResponse(_)
@@ -245,7 +251,9 @@ impl Service<Message> for Peer {
                         Ok(ok) => ok,
                         Err(err) => return Err(Error::MissingStatus(err)),
                     };
+                    println!("fetched status {:?}", status);
                     *this.perception.clone().lock().await = Some(marker);
+                    println!("responding...");
                     return Ok(Some(Message::Status(status)));
                 }
                 Message::TransactionInv(inv) => {
@@ -283,23 +291,26 @@ impl Peer {
     }
 }
 
-pub struct UpdateStatus;
+pub struct PollStatus;
 
-pub enum UpdateError {
+pub enum PollStatusError {
     UnexpectedResponse,
     Tower(Box<dyn std::error::Error + Send + Sync>),
 }
 
-impl Service<UpdateStatus> for Peer {
+impl Service<PollStatus> for Peer {
     type Response = Status;
-    type Error = UpdateError;
+    type Error = PollStatusError;
     type Future = FutResponse<Self::Response, Self::Error>;
 
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        self.client_svc.poll_ready(cx).map_err(UpdateError::Tower)
+        self.client_svc
+            .poll_ready(cx)
+            .map_err(PollStatusError::Tower)
     }
 
-    fn call(&mut self, _: UpdateStatus) -> Self::Future {
+    fn call(&mut self, _: PollStatus) -> Self::Future {
+        println!("Sending poll message to client");
         let response_fut = self.client_svc.call(Message::Poll);
 
         let last_status_inner = self.last_status.clone();
@@ -311,8 +322,8 @@ impl Service<UpdateStatus> for Peer {
                     *last_status_inner.write().await = Some(new_status);
                     Ok(status)
                 }
-                Ok(_) => Err(UpdateError::UnexpectedResponse),
-                Err(err) => Err(UpdateError::Tower(err)),
+                Ok(_) => Err(PollStatusError::UnexpectedResponse),
+                Err(err) => Err(PollStatusError::Tower(err)),
             }
         };
         Box::pin(fut)

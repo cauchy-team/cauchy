@@ -30,13 +30,11 @@ async fn main() {
     let arena = arena::Arena::default();
 
     // Create miners
-    let site = miner::Site::default();
-    let mut miner = miner::MiningCoordinator::new(3);
-    miner.call(miner::NewSession(site)).await;
+    let miner = miner::MiningCoordinator::new(1);
 
     // Construct player
     let database = database::Database::default();
-    let player = arena::Player::new(arena, miner.clone(), database, metadata);
+    let player = arena::Player::new(arena, miner.clone(), database, metadata).await;
 
     // Create RPC
     let rpc_addr = settings

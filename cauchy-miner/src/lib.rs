@@ -12,7 +12,7 @@ use tower_service::Service;
 pub type FutResponse<T, E> =
     std::pin::Pin<Box<dyn std::future::Future<Output = Result<T, E>> + Send>>;
 
-pub type Site = [u8; blake3::OUT_LEN];
+pub type RawSite = [u8; blake3::OUT_LEN];
 pub type Digest = [u8; 32];
 
 pub const WORST_DIGEST: [u8; 32] = [0; 32];
@@ -23,7 +23,7 @@ pub fn get_version() -> String {
 
 #[derive(Clone)]
 pub struct Miner {
-    pub site: Site,
+    pub site: RawSite,
     pub best_nonce: Arc<AtomicU64>,
     pub best_digest: Arc<Mutex<Digest>>,
     pub pool: Arc<rayon::ThreadPool>,
@@ -33,7 +33,7 @@ pub struct Miner {
 impl Miner {
     /// When `n_threads` is zero then it defaults to the number of CPUs.
     pub fn new(
-        site: Site,
+        site: RawSite,
         best_nonce: Arc<AtomicU64>,
         best_digest: Arc<Mutex<Digest>>,
         pool: Arc<rayon::ThreadPool>,
@@ -132,7 +132,7 @@ impl MiningCoordinator {
     }
 }
 
-pub struct NewSession(pub Site);
+pub struct NewSession(pub RawSite);
 
 impl Service<NewSession> for MiningCoordinator {
     type Response = Arc<AtomicU64>;

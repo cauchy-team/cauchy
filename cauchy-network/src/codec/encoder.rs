@@ -23,11 +23,13 @@ impl Encoder<Message> for MessageCodec {
     fn encode(&mut self, item: Message, dst: &mut BytesMut) -> Result<(), Self::Error> {
         match item {
             Message::Poll => {
+                println!("sending raw poll msg...");
                 dst.reserve(1);
 
                 dst.put_u8(0)
             }
             Message::Status(status) => {
+                println!("sending raw status msg...");
                 let oddsketch_len = status.oddsketch.len();
                 dst.reserve(1 + 4 + oddsketch_len + DIGEST_LEN + 8);
 

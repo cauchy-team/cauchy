@@ -126,7 +126,7 @@ pub enum DirectedError<E> {
     Missing,
 }
 
-pub struct DirectedQuery<T>(SocketAddr, T);
+pub struct DirectedQuery<T>(pub SocketAddr, pub T);
 
 impl<T> Service<DirectedQuery<T>> for Arena
 where

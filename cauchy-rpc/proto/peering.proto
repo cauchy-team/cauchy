@@ -24,7 +24,18 @@ message ListPeersResponse {
     repeated Peer peers = 1;
 }
 
+message PollRequest {
+    string address = 1;
+}
+
+message PollResponse {
+    bytes oddsketch = 1;
+    bytes root = 2;
+    uint64 nonce = 3;
+}
+
 service Peering {
+    rpc Poll (PollRequest) returns (PollResponse);
     rpc ListPeers (google.protobuf.Empty) returns (ListPeersResponse);
     rpc ConnectPeer (ConnectRequest) returns (google.protobuf.Empty);
     rpc DisconnectPeer (DisconnectRequest) returns (google.protobuf.Empty);

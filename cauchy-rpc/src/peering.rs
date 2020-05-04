@@ -48,6 +48,29 @@ impl Peering for PeeringService {
         Ok(Response::new(peer_list))
     }
 
+    async fn poll(&self, request: Request<PollRequest>) -> Result<Response<PollResponse>, Status> {
+        let addr: std::net::SocketAddr = request
+            .into_inner()
+            .address
+            .parse()
+            .map_err(|err| Status::invalid_argument(format!("{}", err)))?;
+        let query = arena::player::ArenaQuery(arena::DirectedQuery(addr, arena::peer::PollStatus));
+        println!("starting poll");
+        let status = self
+            .player
+            .clone()
+            .oneshot(query)
+            .await
+            .map_err(|err| Status::unavailable("todo display for this error"))?;
+        let poll_response = PollResponse {
+            oddsketch: status.oddsketch.to_vec(),
+            root: status.root.to_vec(),
+            nonce: status.nonce,
+        };
+        println!("Poll response {:?}", poll_response);
+        Ok(Response::new(poll_response))
+    }
+
     async fn connect_peer(&self, request: Request<ConnectRequest>) -> Result<Response<()>, Status> {
         let tcp_stream = TcpStream::connect(request.into_inner().address)
             .await

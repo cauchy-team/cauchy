@@ -50,6 +50,7 @@ impl StatusState {
                 Ok(None)
             } else {
                 let oddsketch_len = src.get_u16();
+                println!("oddsketch length {}", oddsketch_len);
                 self.oddsketch_len = Some(oddsketch_len);
 
                 Ok(Self::decode_inner(oddsketch_len, src))
@@ -257,10 +258,12 @@ impl Decoder for MessageCodec {
 
         match &mut self.state {
             DecodeState::Poll => {
+                println!("recv raw poll msg...");
                 self.state = DecodeState::Type;
                 Ok(Some(Message::Poll))
             }
             DecodeState::Status(inner_state) => inner_state.decode(src).map(|opt| {
+                println!("recv raw status msg...");
                 opt.map(|status| {
                     self.state = DecodeState::Type;
                     Message::Status(status)

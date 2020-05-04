@@ -24,14 +24,26 @@ use miner::MiningCoordinator;
 
 pub type SplitStream = futures::stream::SplitStream<FramedStream>;
 
+const DIGEST_LEN: usize = 32;
+
 #[derive(Clone)]
-pub struct Site {
+pub struct MiningReport {
     pub oddsketch: Bytes,
     pub root: Bytes,
     pub best_nonce: Arc<AtomicU64>,
 }
 
-impl Site {
+impl Default for MiningReport {
+    fn default() -> Self {
+        Self {
+            oddsketch: Bytes::new(),
+            root: Bytes::from(vec![0; DIGEST_LEN]),
+            best_nonce: Arc::new(AtomicU64::new(0)),
+        }
+    }
+}
+
+impl MiningReport {
     fn to_status(&self) -> Status {
         Status {
             oddsketch: self.oddsketch.clone(),
@@ -47,25 +59,39 @@ pub struct Player {
     arena: Arena,
     metadata: Arc<Metadata>,
     mining_coordinator: MiningCoordinator,
+    mining_report: Arc<RwLock<MiningReport>>,
     database: Database,
     _state_svc: (),
-    site: Option<Arc<RwLock<Site>>>,
 }
 
 impl Player {
-    pub fn new(
+    pub async fn new(
         arena: Arena,
-        mining_coordinator: MiningCoordinator,
+        mut mining_coordinator: MiningCoordinator,
         database: Database,
         metadata: Arc<Metadata>,
     ) -> Self {
+        // TODO: Add pubkey
+        let oddsketch = Bytes::new();
+        let root = Bytes::from(vec![0; DIGEST_LEN]);
+        let site = miner::RawSite::default();
+        let best_nonce = mining_coordinator
+            .call(miner::NewSession(site))
+            .await
+            .unwrap();
+
+        let mining_report = MiningReport {
+            oddsketch,
+            root,
+            best_nonce,
+        };
         Self {
             arena,
             metadata,
             mining_coordinator,
             database,
             _state_svc: (),
-            site: Default::default(),
+            mining_report: Arc::new(RwLock::new(mining_report)),
         }
     }
 
@@ -147,16 +173,17 @@ impl Service<GetStatus> for Player {
     }
 
     fn call(&mut self, _: GetStatus) -> Self::Future {
-        if let Some(site_inner) = self.site.clone() {
-            let fut = async move {
-                let site = site_inner.read().await;
-                let status = site.to_status();
-                Ok((status, Marker))
-            };
-            Box::pin(fut)
-        } else {
-            Box::pin(async move { Err(MissingStatus) })
-        }
+        println!("getting status from player");
+        let report_inner = self.mining_report.clone();
+
+        let fut = async move {
+            println!("getting status from player");
+            let site = report_inner.read().await;
+            let status = site.to_status();
+            println!("status: {:?}", status);
+            Ok((status, Marker))
+        };
+        Box::pin(fut)
     }
 }
 
