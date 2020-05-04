@@ -77,7 +77,7 @@ impl Miner {
                         }
                     }
                 } else {
-                    break
+                    break;
                 }
             }
         });
