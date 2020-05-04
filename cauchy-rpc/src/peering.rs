@@ -2,15 +2,9 @@ pub mod gen {
     tonic::include_proto!("peering");
 }
 
-use std::io;
-
-use futures::{
-    channel::{mpsc, oneshot},
-    prelude::*,
-};
 use tokio::net::TcpStream;
 use tonic::{Request, Response, Status};
-use tower::{util::ServiceExt, Service};
+use tower::util::ServiceExt;
 
 use arena::Player;
 
@@ -65,12 +59,12 @@ impl Peering for PeeringService {
 
     async fn disconnect_peer(
         &self,
-        request: Request<DisconnectRequest>,
+        _request: Request<DisconnectRequest>,
     ) -> Result<Response<()>, Status> {
         todo!()
     }
 
-    async fn ban_peer(&self, request: Request<BanRequest>) -> Result<Response<()>, Status> {
+    async fn ban_peer(&self, _request: Request<BanRequest>) -> Result<Response<()>, Status> {
         Ok(Response::new(()))
     }
 }

@@ -143,12 +143,12 @@ impl Service<TransactionInv> for Player {
     type Error = TransactionError;
     type Future = FutResponse<Self::Response, Self::Error>;
 
-    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         // TODO: Check for database locks
         Poll::Ready(Ok(()))
     }
 
-    fn call(&mut self, inv: TransactionInv) -> Self::Future {
+    fn call(&mut self, _inv: TransactionInv) -> Self::Future {
         unimplemented!()
     }
 }
@@ -179,11 +179,11 @@ impl Service<(Marker, Minisketch)> for Player {
     type Error = ReconcileError;
     type Future = FutResponse<Self::Response, Self::Error>;
 
-    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }
 
-    fn call(&mut self, (marker, minisketch): (Marker, Minisketch)) -> Self::Future {
+    fn call(&mut self, (_marker, _minisketch): (Marker, Minisketch)) -> Self::Future {
         todo!()
     }
 }

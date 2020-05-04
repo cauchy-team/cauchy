@@ -72,7 +72,7 @@ impl Service<GetAllMetadata> for Arena {
         Poll::Ready(Ok(()))
     }
 
-    fn call(&mut self, req: GetAllMetadata) -> Self::Future {
+    fn call(&mut self, _: GetAllMetadata) -> Self::Future {
         let calls = self.peers.iter_mut().map(|mut peer| peer.call(GetMetadata));
         Box::pin(futures::future::try_join_all(calls))
     }
