@@ -8,6 +8,7 @@ use futures_core::task::{Context, Poll};
 use parking_lot::Mutex;
 use tokio::sync::RwLock;
 use tower_service::Service;
+use tracing::trace;
 
 pub type FutResponse<T, E> =
     std::pin::Pin<Box<dyn std::future::Future<Output = Result<T, E>> + Send>>;
@@ -74,6 +75,8 @@ impl Miner {
                             // Store record
                             best_nonce_inner.store(nonce, Ordering::SeqCst);
                             *best_digest_locked = digest;
+
+                            trace!("found new best; digest: {:?}, nonce: {:?}", digest, nonce);
                         }
                     }
                 } else {
