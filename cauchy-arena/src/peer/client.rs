@@ -8,6 +8,7 @@ use futures::{
 use network::codec::{Status, Transactions};
 use network::Message;
 use pin_project::pin_project;
+use tracing::info;
 
 use tower::Service;
 
@@ -120,7 +121,6 @@ impl Service<PollStatus> for PeerClient {
     }
 
     fn call(&mut self, _: PollStatus) -> Self::Future {
-        println!("Sending poll message to client");
         let response_fut = self.client_svc.call(Message::Poll);
 
         let last_status_inner = self.last_status.clone();
@@ -136,6 +136,7 @@ impl Service<PollStatus> for PeerClient {
                 Err(err) => Err(PollStatusError::Tower(err)),
             }
         };
+        info!("polling client");
         Box::pin(fut)
     }
 }

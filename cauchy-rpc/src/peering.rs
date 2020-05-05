@@ -7,6 +7,7 @@ use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use tokio::net::TcpStream;
 use tonic::{Request, Response, Status};
 use tower::{util::ServiceExt, Service};
+use tracing::info;
 
 use arena::{
     arena::{AllQuery, DirectedQuery},
@@ -78,7 +79,6 @@ where
             .parse()
             .map_err(|err| Status::invalid_argument(format!("{}", err)))?;
         let query = ArenaQuery(DirectedQuery(addr, arena::peer::PollStatus));
-        println!("starting poll");
         let player = self.player.clone();
         let status = player
             .oneshot(query)
@@ -90,7 +90,7 @@ where
             root: status.root.to_vec(),
             nonce: status.nonce,
         };
-        println!("Poll response {:?}", poll_response);
+        info!("poll response {:?}", poll_response);
         Ok(Response::new(poll_response))
     }
 

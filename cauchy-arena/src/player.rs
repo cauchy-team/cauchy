@@ -15,6 +15,7 @@ use tokio::{
     sync::RwLock,
 };
 use tower::{util::ServiceExt, Service};
+use tracing::info;
 
 use super::*;
 use database::{Database, Error as DatabaseError};
@@ -216,14 +217,11 @@ impl<A> Service<GetStatus> for Player<A> {
     }
 
     fn call(&mut self, _: GetStatus) -> Self::Future {
-        println!("getting status from player");
         let report_inner = self.mining_report.clone();
-
         let fut = async move {
-            println!("getting status from player");
             let site = report_inner.read().await;
             let status = site.to_status();
-            println!("status: {:?}", status);
+            info!("fetched status from player; {:?}", status);
             Ok((Marker, status))
         };
         Box::pin(fut)

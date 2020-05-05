@@ -9,6 +9,7 @@ use network::codec::Transactions;
 use network::{codec::*, FramedStream, Message};
 use pin_project::pin_project;
 use tower::Service;
+use tracing::info;
 
 use super::*;
 use crate::player;
@@ -65,10 +66,7 @@ impl ServerTransport {
         let sink_inner = sink.clone();
         let fut_a = async move {
             let forward = request_stream
-                .map(move |ok: Message| {
-                    println!("forwarding message {:?}", ok);
-                    Ok(Some(ok))
-                })
+                .map(move |ok: Message| Ok(Some(ok)))
                 .forward(sink_inner);
             forward.await
         };
@@ -135,7 +133,7 @@ where
     fn call(&mut self, message: Message) -> Self::Future {
         let mut this = self.clone();
         let fut = async move {
-            println!("got message {:?}", message);
+            info!("received message; {:?}", message);
             match message {
                 // Send responses
                 Message::ReconcileResponse(_)
@@ -152,9 +150,9 @@ where
                         Ok(ok) => ok,
                         Err(err) => return Err(Error::MissingStatus(err)),
                     };
-                    println!("fetched status {:?}", status);
                     *this.perception.clone().lock().await = Some(marker);
-                    println!("responding...");
+
+                    info!("fetched status; {:?}", status);
                     return Ok(Some(Message::Status(status)));
                 }
                 Message::TransactionInv(inv) => {

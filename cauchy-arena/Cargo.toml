@@ -21,6 +21,7 @@ tokio = { version = "0.2.20", features = ["dns", "io-util", "stream", "tcp", "rt
 tokio-util = { version = "0.3.1", features = ["codec"] }
 tower = "0.3.1"
 tokio-tower = "0.3.6"
+tracing = "0.1.13"
 parking_lot = "0.10.2"
 pin-project = "0.4.10"
 tracing-tower = { git = "https://github.com/tokio-rs/tracing.git" }
