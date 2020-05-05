@@ -84,7 +84,7 @@ where
     type Error = std::io::Error;
     type Future = FutResponse<Self::Response, Self::Error>;
 
-    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         // TODO
         Poll::Ready(Ok(()))
     }

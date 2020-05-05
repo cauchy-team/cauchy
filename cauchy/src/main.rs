@@ -1,8 +1,6 @@
 pub mod settings;
 
-use std::{net::SocketAddr, sync::Arc};
-
-use tracing::Level;
+use std::net::SocketAddr;
 
 use settings::*;
 

@@ -11,10 +11,10 @@ use arena::{
 use futures::{channel::oneshot, FutureExt};
 use tokio::net::TcpStream;
 use tonic::transport::{Error as TransportError, Server};
-use tonic::{Request, Response, Status};
-use tower::{util::ServiceExt, Service};
 
-use peering::gen::{peering_server::PeeringServer, *};
+use tower::Service;
+
+use peering::gen::peering_server::PeeringServer;
 
 pub fn get_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
