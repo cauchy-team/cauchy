@@ -53,7 +53,7 @@ impl Sink<Option<Message>> for ServerTransport {
     }
 }
 
-const BUFFER_SIZE: usize = 128;
+pub const BUFFER_SIZE: usize = 128;
 
 impl ServerTransport {
     // Inject request stream into FramedStream
@@ -96,25 +96,34 @@ pub enum Error {
     UnexpectedReconcile,
 }
 
-impl Service<Message> for Peer {
+impl<Pl> Service<Message> for Peer<Pl>
+where
+    Pl: Clone + Send + 'static,
+    Pl: Service<GetStatus, Response = (Marker, Status), Error = MissingStatus>,
+    <Pl as Service<GetStatus>>::Future: Send,
+    Pl: Service<TransactionInv, Response = Transactions, Error = player::TransactionError>,
+    <Pl as Service<TransactionInv>>::Future: Send,
+    Pl: Service<(Marker, Minisketch), Response = Transactions, Error = player::ReconcileError>,
+    <Pl as Service<(Marker, Minisketch)>>::Future: Send,
+{
     type Response = Option<Message>;
     type Error = Error;
     type Future = FutResponse<Self::Response, Self::Error>;
 
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        match <player::Player as Service<GetStatus>>::poll_ready(&mut self.player, cx) {
+        match <Pl as Service<GetStatus>>::poll_ready(&mut self.player, cx) {
             Poll::Ready(Ok(_)) => (),
             Poll::Ready(Err(err)) => return Poll::Ready(Err(Error::GetStatus(err))),
             Poll::Pending => return Poll::Pending,
         }
 
-        match <player::Player as Service<TransactionInv>>::poll_ready(&mut self.player, cx) {
+        match <Pl as Service<TransactionInv>>::poll_ready(&mut self.player, cx) {
             Poll::Ready(Ok(_)) => (),
             Poll::Ready(Err(err)) => return Poll::Ready(Err(Error::TransactionInv(err))),
             Poll::Pending => return Poll::Pending,
         }
 
-        match <player::Player as Service<(Marker, Minisketch)>>::poll_ready(&mut self.player, cx) {
+        match <Pl as Service<(Marker, Minisketch)>>::poll_ready(&mut self.player, cx) {
             Poll::Ready(Ok(_)) => (),
             Poll::Ready(Err(err)) => return Poll::Ready(Err(Error::Reconcile(err))),
             Poll::Pending => return Poll::Pending,
@@ -139,7 +148,7 @@ impl Service<Message> for Peer {
                     .map_err(Error::ResponseSend)
                     .map(|_| None),
                 Message::Poll => {
-                    let (status, marker) = match this.player.call(GetStatus).await {
+                    let (marker, status) = match this.player.call(GetStatus).await {
                         Ok(ok) => ok,
                         Err(err) => return Err(Error::MissingStatus(err)),
                     };

@@ -49,7 +49,7 @@ impl Settings {
         };
 
         // Set default settings
-        s.set_default("bind", "127.0.0.1:1220")?;
+        s.set_default("bind", "127.0.0.1:1080")?;
         s.set_default("rpc_bind", "0.0.0.0:2080")?;
 
         // Load config from file

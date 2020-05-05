@@ -7,6 +7,7 @@ edition = "2018"
 [dependencies]
 arena = { package = 'cauchy-arena',  path = '../cauchy-arena' }
 miner = { package = 'cauchy-miner',  path = '../cauchy-miner' }
+network = { package = 'cauchy-network',  path = '../cauchy-network' }
 
 futures = "0.3.4"
 http = "0.2.1"

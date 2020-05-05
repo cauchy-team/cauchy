@@ -22,63 +22,18 @@ use crate::player;
 
 pub type TowerError<T> = tokio_tower::Error<T, Message>;
 
-const BUFFER_SIZE: usize = 128;
-
-pub type ClientService =
-    Buffer<Client<ClientTransport, TowerError<ClientTransport>, Message>, Message>;
+pub const BUFFER_SIZE: usize = 128;
 
 #[derive(Clone)]
-pub struct Peer {
-    metadata: Arc<Metadata>,
-    player: player::Player,
-    perception: Arc<Mutex<Option<Marker>>>,
-    response_sink: mpsc::Sender<Message>,
-    last_status: Arc<RwLock<Option<Status>>>,
-    client_svc: ClientService,
+pub struct Peer<Pl> {
+    pub player: Pl,
+    pub perception: Arc<Mutex<Option<Marker>>>,
+    pub response_sink: mpsc::Sender<Message>,
 }
 
-impl Peer {
-    pub fn new(
-        player: player::Player,
-        tcp_stream: TcpStream,
-    ) -> Result<(Self, ServerTransport), std::io::Error> {
-        let addr = tcp_stream.peer_addr()?;
-
-        let codec = MessageCodec::default();
-        let framed = Framed::new(tcp_stream, codec);
-
-        let (response_sink, response_stream) = mpsc::channel(BUFFER_SIZE);
-        let (request_sink, request_stream) = mpsc::channel(BUFFER_SIZE);
-
-        let server_transport = ServerTransport::new(framed, request_stream);
-
-        let client_transport = ClientTransport::new(request_sink, response_stream);
-        let client_svc = Buffer::new(Client::new(client_transport), BUFFER_SIZE);
-
-        let metadata = Arc::new(Metadata {
-            start_time: SystemTime::now(),
-            addr,
-        });
-        Ok((
-            Self {
-                metadata,
-                player,
-                perception: Default::default(),
-                response_sink,
-                last_status: Default::default(),
-                client_svc,
-            },
-            server_transport,
-        ))
-    }
-
-    pub fn get_metadata(&self) -> Arc<Metadata> {
-        self.metadata.clone()
-    }
-
-    pub fn get_socket(&self) -> SocketAddr {
-        self.metadata.addr.clone()
-    }
+pub trait PeerMetadata {
+    fn get_metadata(&self) -> Arc<Metadata>;
+    fn get_socket(&self) -> SocketAddr;
 }
 
 pub enum Error {

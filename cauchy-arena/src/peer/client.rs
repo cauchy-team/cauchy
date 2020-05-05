@@ -14,6 +14,39 @@ use tower::Service;
 use super::*;
 use crate::FutResponse;
 
+pub type ClientService =
+    Buffer<Client<ClientTransport, TowerError<ClientTransport>, Message>, Message>;
+#[derive(Clone)]
+pub struct PeerClient {
+    metadata: Arc<Metadata>,
+    client_svc: ClientService,
+    last_status: Arc<RwLock<Option<Status>>>,
+}
+
+impl PeerClient {
+    pub fn new(
+        metadata: Arc<Metadata>,
+        last_status: Arc<RwLock<Option<Status>>>,
+        client_svc: ClientService,
+    ) -> Self {
+        Self {
+            metadata,
+            client_svc,
+            last_status,
+        }
+    }
+}
+
+impl PeerMetadata for PeerClient {
+    fn get_metadata(&self) -> Arc<Metadata> {
+        self.metadata.clone()
+    }
+
+    fn get_socket(&self) -> SocketAddr {
+        self.metadata.addr.clone()
+    }
+}
+
 #[pin_project]
 pub struct ClientTransport {
     /// Incoming responses
@@ -67,6 +100,7 @@ impl Sink<Message> for ClientTransport {
     }
 }
 
+#[derive(Debug)]
 pub struct PollStatus;
 
 pub enum PollStatusError {
@@ -74,7 +108,7 @@ pub enum PollStatusError {
     Tower(Box<dyn std::error::Error + Send + Sync>),
 }
 
-impl Service<PollStatus> for Peer {
+impl Service<PollStatus> for PeerClient {
     type Response = Status;
     type Error = PollStatusError;
     type Future = FutResponse<Self::Response, Self::Error>;
@@ -113,7 +147,7 @@ pub enum ReconcileError {
     Tower(Box<dyn std::error::Error + Send + Sync>),
 }
 
-impl Service<Reconcile> for Peer {
+impl Service<Reconcile> for PeerClient {
     type Response = Transactions;
     type Error = ReconcileError;
     type Future = FutResponse<Self::Response, Self::Error>;
@@ -139,7 +173,7 @@ impl Service<Reconcile> for Peer {
     }
 }
 
-impl Service<GetStatus> for Peer {
+impl Service<GetStatus> for PeerClient {
     type Response = Status;
     type Error = MissingStatus;
     type Future = FutResponse<Self::Response, Self::Error>;
@@ -155,7 +189,10 @@ impl Service<GetStatus> for Peer {
     }
 }
 
-impl Service<GetMetadata> for Peer {
+#[derive(Debug)]
+pub struct MetadataError;
+
+impl Service<GetMetadata> for PeerClient {
     type Response = Arc<Metadata>;
     type Error = ();
     type Future = FutResponse<Self::Response, Self::Error>;

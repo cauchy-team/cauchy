@@ -13,34 +13,27 @@ pub fn get_version() -> String {
 #[tokio::main]
 async fn main() {
     // Init logging
-
     let env_filter = tracing_subscriber::EnvFilter::from_default_env();
     tracing_subscriber::fmt::Subscriber::builder()
         .with_env_filter(env_filter)
         .init();
+
     // Initialize CLI app and get matches
     let matches = app_init_and_matches();
 
     // Collect settings
     let settings = Settings::new(matches).expect("Failed to collect settings");
 
-    // Collect metadata
-    let bind_addr: SocketAddr = settings.bind.parse().expect("Failed to parse bind address");
-    let start_time = std::time::SystemTime::now();
-    let metadata = Arc::new(arena::Metadata {
-        addr: bind_addr.clone(),
-        start_time,
-    });
-
-    // Construct arena
-    let arena = arena::Arena::default();
-
     // Create miners
     let miner = miner::MiningCoordinator::new(1);
 
+    // Construct arena
+    let arena: arena::Arena = arena::Arena::default();
+
     // Construct player
     let database = database::Database::default();
-    let player = arena::Player::new(arena, miner.clone(), database, metadata).await;
+    let bind_addr: SocketAddr = settings.bind.parse().expect("Failed to parse bind address");
+    let player = arena::Player::new(bind_addr, arena, miner.clone(), database).await;
 
     // Create RPC
     let rpc_addr = settings

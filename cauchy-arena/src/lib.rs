@@ -5,7 +5,7 @@ pub mod player;
 use std::{net::SocketAddr, time::SystemTime};
 
 pub use arena::*;
-pub use peer::Peer;
+pub use peer::{Peer, PeerClient};
 pub use player::Player;
 
 pub struct Marker;
@@ -13,6 +13,7 @@ pub struct Minisketch;
 
 pub struct GetStatus;
 
+#[derive(Debug)]
 pub struct MissingStatus;
 
 #[derive(Clone)]

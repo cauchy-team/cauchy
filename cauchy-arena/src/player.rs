@@ -14,13 +14,18 @@ use tokio::{
     net::{TcpListener, TcpStream},
     sync::RwLock,
 };
-use tokio_tower::pipeline::Server;
 use tower::{util::ServiceExt, Service};
 
 use super::*;
-use crate::{arena::*, peer::*};
 use database::{Database, Error as DatabaseError};
 use miner::MiningCoordinator;
+use std::{net::SocketAddr, time::SystemTime};
+
+use futures::channel::mpsc;
+use network::codec::Status;
+use tokio_tower::pipeline::{Client, Server};
+use tokio_util::codec::Framed;
+use tower::buffer::Buffer;
 
 pub type SplitStream = futures::stream::SplitStream<FramedStream>;
 
@@ -55,8 +60,8 @@ impl MiningReport {
 
 /// Player service
 #[derive(Clone)]
-pub struct Player {
-    arena: Arena,
+pub struct Player<A> {
+    arena: A,
     metadata: Arc<Metadata>,
     mining_coordinator: MiningCoordinator,
     mining_report: Arc<RwLock<MiningReport>>,
@@ -64,13 +69,84 @@ pub struct Player {
     _state_svc: (),
 }
 
-impl Player {
+pub trait PeerConstructor {
+    fn new(&self, tcp_stream: TcpStream) -> Result<PeerClient, std::io::Error>;
+}
+
+impl<A> Service<TcpStream> for Player<A>
+where
+    A: Clone + Send + Sync + 'static,
+    A: Service<(SocketAddr, PeerClient)>,
+    <A as Service<(SocketAddr, PeerClient)>>::Future: Send,
+{
+    type Response = ();
+    type Error = std::io::Error;
+    type Future = FutResponse<Self::Response, Self::Error>;
+
+    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        // TODO
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, tcp_stream: TcpStream) -> Self::Future {
+        let addr = match tcp_stream.peer_addr() {
+            Ok(ok) => ok,
+            Err(err) => return Box::pin(async move { Err(err) }),
+        };
+
+        let codec = MessageCodec::default();
+        let framed = Framed::new(tcp_stream, codec);
+
+        let (response_sink, response_stream) = mpsc::channel(peer::BUFFER_SIZE);
+        let (request_sink, request_stream) = mpsc::channel(peer::BUFFER_SIZE);
+
+        let server_transport = peer::ServerTransport::new(framed, request_stream);
+        let service = Peer {
+            player: self.clone(),
+            perception: Default::default(),
+            response_sink,
+        };
+
+        let server = Server::new(server_transport, service);
+        tokio::spawn(server);
+
+        let metadata = Arc::new(Metadata {
+            start_time: SystemTime::now(),
+            addr,
+        });
+        let client_transport = peer::ClientTransport::new(request_sink, response_stream);
+        let client_svc = Buffer::new(Client::new(client_transport), peer::BUFFER_SIZE);
+        let client = PeerClient::new(metadata, Default::default(), client_svc);
+
+        let arena = self.arena.clone();
+        let fut = async move {
+            arena.oneshot((addr, client)).await;
+            Ok(())
+        };
+
+        Box::pin(fut)
+    }
+}
+
+impl<A> Player<A>
+where
+    A: Clone + Default + Send + Sync + 'static,
+    A: Service<(SocketAddr, PeerClient)>,
+    <A as Service<(SocketAddr, PeerClient)>>::Future: Send,
+{
     pub async fn new(
-        arena: Arena,
+        bind_addr: SocketAddr,
+        arena: A,
         mut mining_coordinator: MiningCoordinator,
         database: Database,
-        metadata: Arc<Metadata>,
     ) -> Self {
+        // Collect metadata
+        let start_time = std::time::SystemTime::now();
+        let metadata = Arc::new(Metadata {
+            addr: bind_addr.clone(),
+            start_time,
+        });
+
         // TODO: Add pubkey
         let oddsketch = Bytes::new();
         let root = Bytes::from(vec![0; DIGEST_LEN]);
@@ -106,8 +182,9 @@ impl Player {
         // let mut boxed_listener = Box::pin(self.call_all(filtered_listener));
         let mut boxed_listener = Box::pin(filtered_listener);
 
+        let this = self.clone();
         while let Some(tcp_stream) = boxed_listener.next().await {
-            self.clone().oneshot(tcp_stream).await;
+            this.clone().oneshot(tcp_stream).await;
         }
     }
 }
@@ -129,42 +206,8 @@ impl std::fmt::Display for HandleError {
 
 impl std::error::Error for HandleError {}
 
-impl Service<TcpStream> for Player {
-    type Response = ();
-    type Error = HandleError;
-    type Future = FutResponse<Self::Response, Self::Error>;
-
-    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        <Arena as Service<Peer>>::poll_ready(&mut self.arena, cx).map_err(HandleError::Arena)
-    }
-
-    fn call(&mut self, tcp_stream: TcpStream) -> Self::Future {
-        let (peer, transport) =
-            match Peer::new(self.clone(), tcp_stream).map_err(HandleError::Socket) {
-                Ok(ok) => ok,
-                Err(err) => return Box::pin(async move { Err::<(), HandleError>(err) }),
-            };
-
-        // Add to peer list
-        let mut arena = self.arena.clone();
-        let fut = async move {
-            if let Err(err) = arena.call(peer.clone()).map_err(HandleError::Arena).await {
-                Err(err)
-            } else {
-                // Spawn new peer server
-                let server_fut = Server::new(transport, peer);
-                tokio::spawn(server_fut);
-
-                Ok(())
-            }
-        };
-
-        Box::pin(fut)
-    }
-}
-
-impl Service<GetStatus> for Player {
-    type Response = (Status, Marker);
+impl<A> Service<GetStatus> for Player<A> {
+    type Response = (Marker, Status);
     type Error = MissingStatus;
     type Future = FutResponse<Self::Response, Self::Error>;
 
@@ -181,7 +224,7 @@ impl Service<GetStatus> for Player {
             let site = report_inner.read().await;
             let status = site.to_status();
             println!("status: {:?}", status);
-            Ok((status, Marker))
+            Ok((Marker, status))
         };
         Box::pin(fut)
     }
@@ -192,7 +235,7 @@ pub enum TransactionError {
     Database(DatabaseError),
 }
 
-impl Service<TransactionInv> for Player {
+impl<A> Service<TransactionInv> for Player<A> {
     type Response = Transactions;
     type Error = TransactionError;
     type Future = FutResponse<Self::Response, Self::Error>;
@@ -207,7 +250,7 @@ impl Service<TransactionInv> for Player {
     }
 }
 
-impl Service<GetMetadata> for Player {
+impl<A> Service<GetMetadata> for Player<A> {
     type Response = Arc<Metadata>;
     type Error = ();
     type Future = FutResponse<Self::Response, Self::Error>;
@@ -228,7 +271,7 @@ pub enum ReconcileError {
     Database(DatabaseError),
 }
 
-impl Service<(Marker, Minisketch)> for Player {
+impl<A> Service<(Marker, Minisketch)> for Player<A> {
     type Response = Transactions;
     type Error = ReconcileError;
     type Future = FutResponse<Self::Response, Self::Error>;
@@ -245,14 +288,14 @@ impl Service<(Marker, Minisketch)> for Player {
 /// Query arena
 pub struct ArenaQuery<T>(pub T);
 
-impl<T> Service<ArenaQuery<T>> for Player
+impl<A, T> Service<ArenaQuery<T>> for Player<A>
 where
-    Arena: Service<T>,
-    T: 'static + Send,
+    A: Service<T>,
+    T: 'static + Send + Sized,
 {
-    type Response = <Arena as Service<T>>::Response;
-    type Error = <Arena as Service<T>>::Error;
-    type Future = <Arena as Service<T>>::Future;
+    type Response = <A as Service<T>>::Response;
+    type Error = <A as Service<T>>::Error;
+    type Future = <A as Service<T>>::Future;
 
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         self.arena.poll_ready(cx)
