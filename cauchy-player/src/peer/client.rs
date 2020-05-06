@@ -1,19 +1,20 @@
 use std::{pin::Pin, sync::Arc};
 
-use futures::{
-    channel::mpsc,
-    prelude::*,
+use futures_channel::mpsc;
+use futures_core::{
+    stream::Stream,
     task::{Context, Poll},
 };
+use futures_sink::Sink;
 use network::codec::{Status, Transactions};
 use network::Message;
 use pin_project::pin_project;
 use tracing::info;
 
-use tower::Service;
+use tower_service::Service;
 
 use super::*;
-use crate::FutResponse;
+use common::*;
 
 pub type ClientService =
     Buffer<Client<ClientTransport, TowerError<ClientTransport>, Message>, Message>;

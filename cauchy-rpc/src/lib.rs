@@ -4,15 +4,15 @@ pub mod peering;
 
 use std::{collections::HashMap, net::SocketAddr, sync::Arc, time::Duration};
 
-use arena::{
-    arena::{AllQuery, DirectedQuery},
-    player::ArenaQuery,
-};
-use futures::{channel::oneshot, FutureExt};
+use futures_channel::oneshot;
+use futures_util::FutureExt;
 use tokio::net::TcpStream;
 use tonic::transport::{Error as TransportError, Server};
+use tower_service::Service;
 
-use tower::Service;
+use arena::{AllQuery, DirectedQuery};
+use common::*;
+use player::{peer, ArenaQuery};
 
 use peering::gen::peering_server::PeeringServer;
 
@@ -89,22 +89,16 @@ impl<Pl> RPCBuilder<Pl>
 where
     Pl: Clone + Send + Sync + 'static,
     // Get all metadata
-    Pl: Service<
-        ArenaQuery<AllQuery<arena::GetMetadata>>,
-        Response = HashMap<SocketAddr, Arc<arena::Metadata>>,
-    >,
-    <Pl as Service<ArenaQuery<AllQuery<arena::GetMetadata>>>>::Error: std::fmt::Debug,
-    <Pl as Service<ArenaQuery<AllQuery<arena::GetMetadata>>>>::Future: Send,
+    Pl: Service<ArenaQuery<AllQuery<GetMetadata>>, Response = HashMap<SocketAddr, Arc<Metadata>>>,
+    <Pl as Service<ArenaQuery<AllQuery<GetMetadata>>>>::Error: std::fmt::Debug,
+    <Pl as Service<ArenaQuery<AllQuery<GetMetadata>>>>::Future: Send,
     // Add new peers
     Pl: Service<TcpStream>,
     <Pl as Service<TcpStream>>::Response: Send,
     <Pl as Service<TcpStream>>::Future: Send,
     // Poll peer
-    Pl: Service<
-        ArenaQuery<DirectedQuery<arena::peer::PollStatus>>,
-        Response = network::codec::Status,
-    >,
-    <Pl as Service<ArenaQuery<DirectedQuery<arena::peer::PollStatus>>>>::Future: Send,
+    Pl: Service<ArenaQuery<DirectedQuery<peer::PollStatus>>, Response = network::codec::Status>,
+    <Pl as Service<ArenaQuery<DirectedQuery<peer::PollStatus>>>>::Future: Send,
 {
     pub async fn start(self, addr: SocketAddr) -> Result<(), TransportError> {
         let mut builder = Server::builder().tcp_keepalive(self.keep_alive);

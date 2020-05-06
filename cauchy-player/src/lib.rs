@@ -1,34 +1,37 @@
-use std::sync::{
-    atomic::{AtomicU64, Ordering},
-    Arc,
+pub mod peer;
+
+use std::{
+    net::SocketAddr,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
+    time::SystemTime,
 };
 
 use bytes::Bytes;
-use futures::{
-    prelude::*,
-    task::{Context, Poll},
-};
-use network::codec::*;
-use network::FramedStream;
+use futures_channel::mpsc;
+use futures_core::task::{Context, Poll};
+use futures_util::stream::StreamExt;
+use network::codec::Status;
+use network::{codec::*, FramedStream};
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::RwLock,
 };
-use tower::{util::ServiceExt, Service};
-use tracing::info;
-
-use super::*;
-use database::{Database, Error as DatabaseError};
-use miner::MiningCoordinator;
-use std::{net::SocketAddr, time::SystemTime};
-
-use futures::channel::mpsc;
-use network::codec::Status;
 use tokio_tower::pipeline::{Client, Server};
 use tokio_util::codec::Framed;
-use tower::buffer::Buffer;
+use tower_buffer::Buffer;
+use tower_service::Service;
+use tower_util::ServiceExt;
+use tracing::info;
 
-pub type SplitStream = futures::stream::SplitStream<FramedStream>;
+use common::*;
+use database::{Database, Error as DatabaseError};
+use miner::MiningCoordinator;
+use peer::{Peer, PeerClient};
+
+pub type SplitStream = futures_util::stream::SplitStream<FramedStream>;
 
 const DIGEST_LEN: usize = 32;
 
@@ -74,6 +77,8 @@ pub trait PeerConstructor {
     fn new(&self, tcp_stream: TcpStream) -> Result<PeerClient, std::io::Error>;
 }
 
+const PEER_BUFFER: usize = 128;
+
 impl<A> Service<TcpStream> for Player<A>
 where
     A: Clone + Send + Sync + 'static,
@@ -98,8 +103,8 @@ where
         let codec = MessageCodec::default();
         let framed = Framed::new(tcp_stream, codec);
 
-        let (response_sink, response_stream) = mpsc::channel(peer::BUFFER_SIZE);
-        let (request_sink, request_stream) = mpsc::channel(peer::BUFFER_SIZE);
+        let (response_sink, response_stream) = mpsc::channel(PEER_BUFFER);
+        let (request_sink, request_stream) = mpsc::channel(PEER_BUFFER);
 
         let server_transport = peer::ServerTransport::new(framed, request_stream);
         let service = Peer {
@@ -189,23 +194,6 @@ where
         }
     }
 }
-
-#[derive(Debug)]
-pub enum HandleError {
-    Socket(std::io::Error),
-    Arena(arena::NewPeerError),
-}
-
-impl std::fmt::Display for HandleError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Socket(err) => err.fmt(f),
-            Self::Arena(err) => err.fmt(f),
-        }
-    }
-}
-
-impl std::error::Error for HandleError {}
 
 impl<A> Service<GetStatus> for Player<A> {
     type Response = (Marker, Status);

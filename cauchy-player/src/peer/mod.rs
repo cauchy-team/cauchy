@@ -6,16 +6,13 @@ pub use server::*;
 
 use std::{net::SocketAddr, sync::Arc};
 
-use futures::channel::mpsc;
-
-use network::Message;
+use futures_channel::mpsc;
 use tokio::sync::{Mutex, RwLock};
 use tokio_tower::pipeline::Client;
+use tower_buffer::Buffer;
 
-use tower::buffer::Buffer;
-
-use super::*;
-use crate::player;
+use common::{Marker, Metadata};
+use network::Message;
 
 pub type TowerError<T> = tokio_tower::Error<T, Message>;
 
@@ -31,14 +28,4 @@ pub struct Peer<Pl> {
 pub trait PeerMetadata {
     fn get_metadata(&self) -> Arc<Metadata>;
     fn get_socket(&self) -> SocketAddr;
-}
-
-pub enum Error {
-    ResponseSend(mpsc::SendError),
-    MissingStatus(MissingStatus),
-    Reconcile(player::ReconcileError),
-    Transaction(player::TransactionError),
-    GetStatus(MissingStatus),
-    TransactionInv(player::TransactionError),
-    UnexpectedReconcile,
 }

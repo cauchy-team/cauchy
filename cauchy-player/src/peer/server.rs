@@ -1,20 +1,24 @@
 use std::pin::Pin;
 
-use futures::{
-    channel::mpsc,
-    prelude::*,
+use futures_channel::mpsc;
+use futures_core::{
+    stream::Stream,
     task::{Context, Poll},
 };
-use network::codec::Transactions;
-use network::{codec::*, FramedStream, Message};
+use futures_sink::Sink;
+use futures_util::{sink::SinkExt, stream::StreamExt};
+use network::{
+    codec::{Transactions, *},
+    FramedStream, Message,
+};
 use pin_project::pin_project;
-use tower::Service;
+use tower_service::Service;
 use tracing::info;
 
-use super::*;
-use crate::player;
+use crate::*;
+use common::*;
 
-pub type SplitStream = futures::stream::SplitStream<FramedStream>;
+pub type SplitStream = futures_util::stream::SplitStream<FramedStream>;
 
 #[pin_project]
 pub struct ServerTransport {
@@ -87,10 +91,10 @@ impl ServerTransport {
 pub enum Error {
     ResponseSend(mpsc::SendError),
     MissingStatus(MissingStatus),
-    Reconcile(player::ReconcileError),
-    Transaction(player::TransactionError),
+    Reconcile(ReconcileError),
+    Transaction(TransactionError),
     GetStatus(MissingStatus),
-    TransactionInv(player::TransactionError),
+    TransactionInv(TransactionError),
     UnexpectedReconcile,
 }
 
@@ -99,9 +103,9 @@ where
     Pl: Clone + Send + 'static,
     Pl: Service<GetStatus, Response = (Marker, Status), Error = MissingStatus>,
     <Pl as Service<GetStatus>>::Future: Send,
-    Pl: Service<TransactionInv, Response = Transactions, Error = player::TransactionError>,
+    Pl: Service<TransactionInv, Response = Transactions, Error = TransactionError>,
     <Pl as Service<TransactionInv>>::Future: Send,
-    Pl: Service<(Marker, Minisketch), Response = Transactions, Error = player::ReconcileError>,
+    Pl: Service<(Marker, Minisketch), Response = Transactions, Error = ReconcileError>,
     <Pl as Service<(Marker, Minisketch)>>::Future: Send,
 {
     type Response = Option<Message>;

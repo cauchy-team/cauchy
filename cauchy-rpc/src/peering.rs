@@ -6,13 +6,13 @@ use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 
 use tokio::net::TcpStream;
 use tonic::{Request, Response, Status};
-use tower::{util::ServiceExt, Service};
+use tower_service::Service;
+use tower_util::ServiceExt;
 use tracing::info;
 
-use arena::{
-    arena::{AllQuery, DirectedQuery},
-    player::ArenaQuery,
-};
+use arena::{AllQuery, DirectedQuery};
+use common::*;
+use player::{peer, ArenaQuery};
 
 use gen::peering_server::Peering;
 use gen::*;
@@ -35,25 +35,19 @@ impl<Pl> Peering for PeeringService<Pl>
 where
     Pl: Clone + Send + Sync + 'static,
     // Get all metadata
-    Pl: Service<
-        ArenaQuery<AllQuery<arena::GetMetadata>>,
-        Response = HashMap<SocketAddr, Arc<arena::Metadata>>,
-    >,
-    <Pl as Service<ArenaQuery<AllQuery<arena::GetMetadata>>>>::Future: Send,
-    <Pl as Service<ArenaQuery<AllQuery<arena::GetMetadata>>>>::Error: std::fmt::Debug,
+    Pl: Service<ArenaQuery<AllQuery<GetMetadata>>, Response = HashMap<SocketAddr, Arc<Metadata>>>,
+    <Pl as Service<ArenaQuery<AllQuery<GetMetadata>>>>::Future: Send,
+    <Pl as Service<ArenaQuery<AllQuery<GetMetadata>>>>::Error: std::fmt::Debug,
     // Add new peers
     Pl: Service<TcpStream>,
     <Pl as Service<TcpStream>>::Response: Send,
     <Pl as Service<TcpStream>>::Future: Send,
     // Poll peer
-    Pl: Service<
-        ArenaQuery<DirectedQuery<arena::peer::PollStatus>>,
-        Response = network::codec::Status,
-    >,
-    <Pl as Service<ArenaQuery<DirectedQuery<arena::peer::PollStatus>>>>::Future: Send,
+    Pl: Service<ArenaQuery<DirectedQuery<peer::PollStatus>>, Response = network::codec::Status>,
+    <Pl as Service<ArenaQuery<DirectedQuery<peer::PollStatus>>>>::Future: Send,
 {
     async fn list_peers(&self, _: Request<()>) -> Result<Response<ListPeersResponse>, Status> {
-        let query = ArenaQuery(AllQuery(arena::GetMetadata));
+        let query = ArenaQuery(AllQuery(GetMetadata));
         let metadata_map: Result<_, _> = self.player.clone().oneshot(query).await;
         let peer_list = ListPeersResponse {
             peers: metadata_map
@@ -78,7 +72,7 @@ where
             .address
             .parse()
             .map_err(|err| Status::invalid_argument(format!("{}", err)))?;
-        let query = ArenaQuery(DirectedQuery(addr, arena::peer::PollStatus));
+        let query = ArenaQuery(DirectedQuery(addr, peer::PollStatus));
         let player = self.player.clone();
         let status = player
             .oneshot(query)

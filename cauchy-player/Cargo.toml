@@ -1,27 +1,25 @@
 [package]
-name = "cauchy-rpc"
+name = "cauchy-player"
 version = "0.1.0"
 authors = ["Harry Barber <harrybarber@protonmail.com>"]
 edition = "2018"
 
 [dependencies]
-arena = { package = 'cauchy-arena',  path = '../cauchy-arena' }
 common = { package = 'cauchy-common', path = '../cauchy-common' }
+database = { package = 'cauchy-database', path = '../cauchy-database' }
 miner = { package = 'cauchy-miner',  path = '../cauchy-miner' }
 network = { package = 'cauchy-network',  path = '../cauchy-network' }
-player = { package = 'cauchy-player',  path = '../cauchy-player' }
 
+bytes = "0.5.4"
 futures-channel = "0.3.4"
 futures-core = "0.3.4"
+futures-sink = "0.3.4"
 futures-util = "0.3.4"
-http = "0.2.1"
-prost = "0.6.1"
-prost-types = "0.6.1"
-tonic = { version = "0.2.0", features = ["tls", "transport"] }
+pin-project = "0.4.10"
 tokio = { version = "0.2.20", features = ["tcp"] }
+tokio-util = "0.3.1"
 tower-service = "0.3.0"
+tower-buffer = "0.3.0"
 tower-util = "0.3.1"
+tokio-tower = "0.4.0"
 tracing = "0.1.13"
-
-[build-dependencies]
-tonic-build = "0.2.0"

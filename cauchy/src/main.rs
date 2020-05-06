@@ -31,7 +31,7 @@ async fn main() {
     // Construct player
     let database = database::Database::default();
     let bind_addr: SocketAddr = settings.bind.parse().expect("Failed to parse bind address");
-    let player = arena::Player::new(bind_addr, arena, miner.clone(), database).await;
+    let player = player::Player::new(bind_addr, arena, miner.clone(), database).await;
 
     // Create RPC
     let rpc_addr = settings
