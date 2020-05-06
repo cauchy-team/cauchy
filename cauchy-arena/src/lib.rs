@@ -5,6 +5,7 @@ use futures::{
     prelude::*,
     task::{Context, Poll},
 };
+use rand::{rngs::OsRng, seq::IteratorRandom};
 
 use tower::Service;
 
@@ -54,47 +55,55 @@ impl std::fmt::Display for NewPeerError {
     }
 }
 
-// pub struct PollSample(usize);
+pub struct SampleQuery<T>(T, usize);
 
-// impl Service<PollSample> for Arena {
-//     type Response = Vec<(SocketAddr, Status)>;
-//     type Error = MissingStatus;
-//     type Future = FutResponse<Self::Response, Self::Error>;
+impl<T> Service<SampleQuery<T>> for Arena
+where
+    PeerClient: Service<T>,
+    <PeerClient as Service<T>>::Future: Send + 'static,
+    <PeerClient as Service<T>>::Error: Send,
+    <PeerClient as Service<T>>::Response: Send,
+    T: 'static + Clone,
+{
+    type Response = Vec<(SocketAddr, <PeerClient as Service<T>>::Response)>;
+    type Error = MissingStatus;
+    type Future = FutResponse<Self::Response, Self::Error>;
 
-//     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-//         for mut peer in self.peers.iter_mut() {
-//             match <PeerClient as Service<GetStatus>>::poll_ready(&mut peer, cx) {
-//                 Poll::Pending => return Poll::Pending,
-//                 Poll::Ready(Err(err)) => return Poll::Ready(Err(err)),
-//                 _ => continue,
-//             }
-//         }
-//         Poll::Ready(Ok(()))
-//     }
+    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        for mut peer in self.peers.iter_mut() {
+            match <PeerClient as Service<GetStatus>>::poll_ready(&mut peer, cx) {
+                Poll::Pending => return Poll::Pending,
+                Poll::Ready(Err(err)) => return Poll::Ready(Err(err)),
+                _ => continue,
+            }
+        }
+        Poll::Ready(Ok(()))
+    }
 
-//     fn call(&mut self, PollSample(num): PollSample) -> Self::Future {
-//         // TODO: Remove clone here
-//         let sample = self.peers.iter().choose_multiple(&mut OsRng, num);
+    fn call(&mut self, SampleQuery(req, num): SampleQuery<T>) -> Self::Future {
+        // TODO: Remove clone here
+        let sample = self.peers.iter().choose_multiple(&mut OsRng, num);
 
-//         let collected = sample
-//             .iter()
-//             .map(move |reference| reference.pair())
-//             .map(move |(x, y)| (x.clone(), y.clone()))
-//             .map(move |(addr, mut peer): (SocketAddr, PeerClient)| {
-//                 peer.call(GetStatus).map_ok(move |res| (addr, res))
-//             });
+        let collected = sample
+            .iter()
+            .map(move |reference| reference.pair())
+            .map(move |(x, y)| (x.clone(), y.clone()))
+            .map(move |(addr, mut peer): (SocketAddr, PeerClient)| {
+                peer.call(req.clone()).map_ok(move |res| (addr, res))
+            });
 
-//         let fut = futures::future::join_all(collected).map(move |collection: Vec<Result<_, _>>| {
-//             let filtered_collection: Vec<(SocketAddr, Status)> = collection
-//                 .into_iter()
-//                 .filter_map(move |res: Result<_, _>| res.ok())
-//                 .collect();
+        let fut = futures::future::join_all(collected).map(move |collection: Vec<Result<_, _>>| {
+            let filtered_collection: Vec<(SocketAddr, <PeerClient as Service<T>>::Response)> =
+                collection
+                    .into_iter()
+                    .filter_map(move |res: Result<_, _>| res.ok())
+                    .collect();
 
-//             Ok(filtered_collection)
-//         });
-//         Box::pin(fut)
-//     }
-// }
+            Ok(filtered_collection)
+        });
+        Box::pin(fut)
+    }
+}
 
 #[derive(Debug)]
 pub enum DirectedError<E> {
