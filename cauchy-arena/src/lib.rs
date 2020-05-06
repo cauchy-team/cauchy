@@ -55,8 +55,6 @@ impl std::fmt::Display for NewPeerError {
     }
 }
 
-pub struct SampleQuery<T>(T, usize);
-
 impl<T> Service<SampleQuery<T>> for Arena
 where
     PeerClient: Service<T>,
@@ -111,9 +109,6 @@ pub enum DirectedError<E> {
     Missing,
 }
 
-/// Directed query message. Wraps an `Arena` message.
-pub struct DirectedQuery<T>(pub SocketAddr, pub T);
-
 impl<T> Service<DirectedQuery<T>> for Arena
 where
     PeerClient: Service<T>,
@@ -148,8 +143,6 @@ where
         Box::pin(fut)
     }
 }
-
-pub struct AllQuery<T: Sized>(pub T);
 
 impl<T> Service<AllQuery<T>> for Arena
 where

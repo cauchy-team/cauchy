@@ -38,7 +38,7 @@ impl Encoder<Message> for MessageCodec {
                 dst.put(status.root);
                 dst.put_u64(status.nonce);
             }
-            Message::Reconcile => {
+            Message::Reconcile(_minisketch) => {
                 dst.reserve(1);
 
                 dst.put_u8(2);

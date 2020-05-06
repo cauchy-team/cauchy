@@ -7,16 +7,13 @@ use futures_core::{
 };
 use futures_sink::Sink;
 use futures_util::{sink::SinkExt, stream::StreamExt};
-use network::{
-    codec::{Transactions, *},
-    FramedStream, Message,
-};
 use pin_project::pin_project;
 use tower_service::Service;
 use tracing::info;
 
 use crate::*;
 use common::*;
+use network::{FramedStream, Message};
 
 pub type SplitStream = futures_util::stream::SplitStream<FramedStream>;
 
@@ -165,7 +162,7 @@ where
                         .map(|ok| Some(Message::Transactions(ok)))
                         .map_err(Error::Transaction)
                 }
-                Message::Reconcile => {
+                Message::Reconcile(_minisketch) => {
                     let marker = this
                         .perception
                         .lock()

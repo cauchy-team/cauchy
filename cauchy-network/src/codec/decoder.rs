@@ -16,6 +16,7 @@ use tokio_util::codec::Decoder;
 use tracing::trace;
 
 use super::*;
+use common::*;
 
 /*
 Decoding states
@@ -273,7 +274,7 @@ impl Decoder for MessageCodec {
             DecodeState::Reconcile => {
                 trace!("decoding reconcile; {:?}", src);
                 self.state = DecodeState::Type;
-                Ok(Some(Message::Reconcile))
+                Ok(Some(Message::Reconcile(Minisketch)))
             }
             DecodeState::ReconcileResponse(inner_state) => inner_state.decode(src).map(|opt| {
                 trace!("decoding reconcile response; {:?}", src);

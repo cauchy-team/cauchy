@@ -5,6 +5,10 @@ authors = ["Harry Barber <harrybarber@protonmail.com>"]
 edition = "2018"
 
 [dependencies]
+common = { package = 'cauchy-common', path = '../cauchy-common' }
+crypto = { package = 'cauchy-crypto', path = '../cauchy-crypto' }
+
+num-bigint = "0.2.6"
 rayon = "1.3.0"
 
 [dev-dependencies]

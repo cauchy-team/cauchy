@@ -12,7 +12,7 @@ fn random() -> Entry {
     let mass: u8 = rng.gen();
     Entry {
         oddsketch,
-        mass: mass as u32,
+        mass: mass as u64,
     }
 }
 

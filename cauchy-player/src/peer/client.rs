@@ -1,12 +1,12 @@
 use std::{pin::Pin, sync::Arc};
 
+use common::{Status, Transactions};
 use futures_channel::mpsc;
 use futures_core::{
     stream::Stream,
     task::{Context, Poll},
 };
 use futures_sink::Sink;
-use network::codec::{Status, Transactions};
 use network::Message;
 use pin_project::pin_project;
 use tracing::info;
@@ -102,9 +102,6 @@ impl Sink<Message> for ClientTransport {
     }
 }
 
-#[derive(Debug)]
-pub struct PollStatus;
-
 pub enum PollStatusError {
     UnexpectedResponse,
     Tower(Box<dyn std::error::Error + Send + Sync>),
@@ -137,12 +134,10 @@ impl Service<PollStatus> for PeerClient {
                 Err(err) => Err(PollStatusError::Tower(err)),
             }
         };
-        info!("polling client");
+        info!("polling peer");
         Box::pin(fut)
     }
 }
-
-pub struct Reconcile(Minisketch);
 
 pub enum ReconcileError {
     UnexpectedResponse,
@@ -160,8 +155,8 @@ impl Service<Reconcile> for PeerClient {
             .map_err(ReconcileError::Tower)
     }
 
-    fn call(&mut self, _: Reconcile) -> Self::Future {
-        let response_fut = self.client_svc.call(Message::Poll);
+    fn call(&mut self, Reconcile(minisketch): Reconcile) -> Self::Future {
+        let response_fut = self.client_svc.call(Message::Reconcile(minisketch));
 
         let fut = async move {
             let response = response_fut.await;
@@ -171,6 +166,7 @@ impl Service<Reconcile> for PeerClient {
                 Err(err) => Err(ReconcileError::Tower(err)),
             }
         };
+        info!("reconciling with peer");
         Box::pin(fut)
     }
 }

@@ -51,7 +51,13 @@ async fn main() {
         .mining_service(miner)
         .start(rpc_addr);
 
-    let peer_acceptor = player.begin_acceptor();
+    // Peer acceptor task
+    let peer_acceptor = player.clone().begin_acceptor();
     tokio::spawn(rpc_server);
+
+    // Peer polling task
+    let peer_poll = player.begin_heartbeat(3, 3_000);
+    tokio::spawn(peer_poll);
+
     peer_acceptor.await;
 }

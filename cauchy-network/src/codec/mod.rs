@@ -1,8 +1,6 @@
 mod decoder;
 mod encoder;
 
-use bytes::Bytes;
-
 pub use decoder::*;
 pub use encoder::*;
 
@@ -10,38 +8,13 @@ const DIGEST_LEN: usize = 32;
 
 pub const MAGIC_BYTES: [u8; 4] = [1, 2, 3, 4];
 
-/*
-Network messages
-*/
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Status {
-    pub oddsketch: Bytes,
-    pub root: Bytes,
-    pub nonce: u64,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Transaction {
-    timestamp: u64,
-    binary: Bytes,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Transactions {
-    txs: Vec<Transaction>,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct TransactionInv {
-    tx_ids: Vec<Bytes>,
-}
+use common::*;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Message {
     Poll,
     Status(Status),
-    Reconcile,
+    Reconcile(Minisketch),
     ReconcileResponse(Transactions),
     Transaction(Transaction),
     TransactionInv(TransactionInv),
@@ -66,7 +39,7 @@ impl Default for MessageCodec {
 
 #[cfg(test)]
 mod tests {
-    use bytes::BytesMut;
+    use bytes::{Bytes, BytesMut};
     use rand::prelude::*;
     use tokio_util::codec::{Decoder as _, Encoder as _};
 
@@ -145,7 +118,7 @@ mod tests {
         let mut codec = MessageCodec::default();
 
         codec
-            .encode(Message::Reconcile, &mut buf)
+            .encode(Message::Reconcile(Minisketch), &mut buf)
             .expect("encoding error");
 
         let result = codec
@@ -153,7 +126,7 @@ mod tests {
             .expect("decoding error")
             .expect("decoding incomplete");
 
-        assert_eq!(result, Message::Reconcile);
+        assert_eq!(result, Message::Reconcile(Minisketch));
 
         let result = codec.decode(&mut buf).expect("decoding error");
         assert_eq!(result, None);

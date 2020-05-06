@@ -5,7 +5,6 @@ authors = ["Harry Barber <harrybarber@protonmail.com>"]
 edition = "2018"
 
 [dependencies]
-arena = { package = 'cauchy-arena',  path = '../cauchy-arena' }
 common = { package = 'cauchy-common', path = '../cauchy-common' }
 miner = { package = 'cauchy-miner',  path = '../cauchy-miner' }
 network = { package = 'cauchy-network',  path = '../cauchy-network' }

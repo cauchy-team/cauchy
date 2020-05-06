@@ -5,6 +5,8 @@ authors = ["Harry Barber <harrybarber@protonmail.com>"]
 edition = "2018"
 
 [dependencies]
+common = { package = 'cauchy-common', path = '../cauchy-common' }
+
 bytes = "0.5.4"
 futures = "0.3.4"
 tokio = { version = "0.2.20", features = ["tcp"] }

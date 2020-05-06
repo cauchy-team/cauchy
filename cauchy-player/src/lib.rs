@@ -6,14 +6,13 @@ use std::{
         atomic::{AtomicU64, Ordering},
         Arc,
     },
-    time::SystemTime,
+    time::{Duration, SystemTime},
 };
 
 use bytes::Bytes;
 use futures_channel::mpsc;
 use futures_core::task::{Context, Poll};
 use futures_util::stream::StreamExt;
-use network::codec::Status;
 use network::{codec::*, FramedStream};
 use tokio::{
     net::{TcpListener, TcpStream},
@@ -27,6 +26,7 @@ use tower_util::ServiceExt;
 use tracing::info;
 
 use common::*;
+use consensus::Entry;
 use database::{Database, Error as DatabaseError};
 use miner::MiningCoordinator;
 use peer::{Peer, PeerClient};
@@ -42,22 +42,12 @@ pub struct MiningReport {
     pub best_nonce: Arc<AtomicU64>,
 }
 
-impl Default for MiningReport {
-    fn default() -> Self {
-        Self {
-            oddsketch: Bytes::new(),
-            root: Bytes::from(vec![0; DIGEST_LEN]),
-            best_nonce: Arc::new(AtomicU64::new(0)),
-        }
-    }
-}
-
 impl MiningReport {
     fn to_status(&self) -> Status {
         Status {
             oddsketch: self.oddsketch.clone(),
             root: self.root.clone(),
-            nonce: self.best_nonce.load(Ordering::SeqCst),
+            nonce: self.best_nonce.load(Ordering::SeqCst) as u64, // TODO: Fix
         }
     }
 }
@@ -137,8 +127,15 @@ where
 impl<A> Player<A>
 where
     A: Clone + Default + Send + Sync + 'static,
+    // Arena peer constructor interface
     A: Service<(SocketAddr, PeerClient)>,
     <A as Service<(SocketAddr, PeerClient)>>::Future: Send,
+    // Poll interface
+    A: Service<SampleQuery<PollStatus>>,
+    <A as Service<SampleQuery<PollStatus>>>::Response:
+        std::fmt::Debug + IntoIterator<Item = (SocketAddr, Status)>,
+    <A as Service<SampleQuery<PollStatus>>>::Error: std::fmt::Debug,
+    A: Service<DirectedQuery<Reconcile>>,
 {
     pub async fn new(
         bind_addr: SocketAddr,
@@ -154,7 +151,7 @@ where
         });
 
         // TODO: Add pubkey
-        let oddsketch = Bytes::new();
+        let oddsketch = Bytes::from(vec![1; DIGEST_LEN]);
         let root = Bytes::from(vec![0; DIGEST_LEN]);
         let site = miner::RawSite::default();
         let best_nonce = mining_coordinator
@@ -191,6 +188,39 @@ where
         let this = self.clone();
         while let Some(tcp_stream) = boxed_listener.next().await {
             this.clone().oneshot(tcp_stream).await;
+        }
+    }
+
+    pub async fn begin_heartbeat(self, sample_size: usize, interval_ms: u64) {
+        // Poll sample
+        let mut timer = tokio::time::interval(Duration::from_millis(interval_ms));
+        let query = SampleQuery(PollStatus, sample_size);
+        while let Some(_) = timer.next().await {
+            info!("starting heartbeat");
+            // Aggregate results
+            let peer_statuses = self.arena.clone().oneshot(query.clone()).await.unwrap(); // TODO: Don't unwrap
+            let (_marker, player_status) = self.clone().oneshot(GetStatus).await.unwrap(); // TODO: Don't unwrap
+            let (addrs, mut peer_entries): (Vec<_>, Vec<_>) = peer_statuses
+                .into_iter()
+                .map(move |(addr, status)| (addr, Entry::from_site(&[], status)))
+                .unzip();
+
+            let my_pubkey = &[];
+            peer_entries.push(Entry::from_site(my_pubkey, player_status));
+
+            let winning_index = consensus::calculate_winner(&peer_entries[..]).unwrap(); // TODO: Don't unwrap
+            info!("{} of {} wins", winning_index + 1, peer_entries.len());
+            if peer_entries.len() == winning_index + 1 {
+                info!("player won with {:?}", peer_entries[winning_index]);
+            } else {
+                let addr = addrs[winning_index];
+                info!(
+                    "{:?} won with {:?}",
+                    addrs[winning_index], peer_entries[winning_index]
+                );
+                let _reconcile_query = DirectedQuery(addr, Reconcile(Minisketch));
+                // self.arena.clone().oneshot(reconcile_query).await;
+            }
         }
     }
 }

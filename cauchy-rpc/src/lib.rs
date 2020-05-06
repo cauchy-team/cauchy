@@ -10,9 +10,8 @@ use tokio::net::TcpStream;
 use tonic::transport::{Error as TransportError, Server};
 use tower_service::Service;
 
-use arena::{AllQuery, DirectedQuery};
 use common::*;
-use player::{peer, ArenaQuery};
+use player::ArenaQuery;
 
 use peering::gen::peering_server::PeeringServer;
 
@@ -97,8 +96,8 @@ where
     <Pl as Service<TcpStream>>::Response: Send,
     <Pl as Service<TcpStream>>::Future: Send,
     // Poll peer
-    Pl: Service<ArenaQuery<DirectedQuery<peer::PollStatus>>, Response = network::codec::Status>,
-    <Pl as Service<ArenaQuery<DirectedQuery<peer::PollStatus>>>>::Future: Send,
+    Pl: Service<ArenaQuery<DirectedQuery<PollStatus>>, Response = Status>,
+    <Pl as Service<ArenaQuery<DirectedQuery<PollStatus>>>>::Future: Send,
 {
     pub async fn start(self, addr: SocketAddr) -> Result<(), TransportError> {
         let mut builder = Server::builder().tcp_keepalive(self.keep_alive);

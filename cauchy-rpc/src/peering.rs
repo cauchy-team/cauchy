@@ -5,12 +5,11 @@ pub mod gen {
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 
 use tokio::net::TcpStream;
-use tonic::{Request, Response, Status};
+use tonic::{Request, Response};
 use tower_service::Service;
 use tower_util::ServiceExt;
 use tracing::info;
 
-use arena::{AllQuery, DirectedQuery};
 use common::*;
 use player::{peer, ArenaQuery};
 
@@ -43,10 +42,13 @@ where
     <Pl as Service<TcpStream>>::Response: Send,
     <Pl as Service<TcpStream>>::Future: Send,
     // Poll peer
-    Pl: Service<ArenaQuery<DirectedQuery<peer::PollStatus>>, Response = network::codec::Status>,
-    <Pl as Service<ArenaQuery<DirectedQuery<peer::PollStatus>>>>::Future: Send,
+    Pl: Service<ArenaQuery<DirectedQuery<PollStatus>>, Response = Status>,
+    <Pl as Service<ArenaQuery<DirectedQuery<PollStatus>>>>::Future: Send,
 {
-    async fn list_peers(&self, _: Request<()>) -> Result<Response<ListPeersResponse>, Status> {
+    async fn list_peers(
+        &self,
+        _: Request<()>,
+    ) -> Result<Response<ListPeersResponse>, tonic::Status> {
         let query = ArenaQuery(AllQuery(GetMetadata));
         let metadata_map: Result<_, _> = self.player.clone().oneshot(query).await;
         let peer_list = ListPeersResponse {
@@ -66,18 +68,21 @@ where
         Ok(Response::new(peer_list))
     }
 
-    async fn poll(&self, request: Request<PollRequest>) -> Result<Response<PollResponse>, Status> {
+    async fn poll(
+        &self,
+        request: Request<PollRequest>,
+    ) -> Result<Response<PollResponse>, tonic::Status> {
         let addr: std::net::SocketAddr = request
             .into_inner()
             .address
             .parse()
-            .map_err(|err| Status::invalid_argument(format!("{}", err)))?;
-        let query = ArenaQuery(DirectedQuery(addr, peer::PollStatus));
+            .map_err(|err| tonic::Status::invalid_argument(format!("{}", err)))?;
+        let query = ArenaQuery(DirectedQuery(addr, PollStatus));
         let player = self.player.clone();
         let status = player
             .oneshot(query)
             .await
-            .map_err(|_| Status::unavailable("todo display for this error"))?;
+            .map_err(|_| tonic::Status::unavailable("todo display for this error"))?;
 
         let poll_response = PollResponse {
             oddsketch: status.oddsketch.to_vec(),
@@ -88,10 +93,13 @@ where
         Ok(Response::new(poll_response))
     }
 
-    async fn connect_peer(&self, request: Request<ConnectRequest>) -> Result<Response<()>, Status> {
+    async fn connect_peer(
+        &self,
+        request: Request<ConnectRequest>,
+    ) -> Result<Response<()>, tonic::Status> {
         let tcp_stream = TcpStream::connect(request.into_inner().address)
             .await
-            .map_err(|err| Status::invalid_argument(err.to_string()))?;
+            .map_err(|err| tonic::Status::invalid_argument(err.to_string()))?;
         self.player.clone().oneshot(tcp_stream).await; // TODO: Handle
 
         Ok(Response::new(()))
@@ -100,11 +108,11 @@ where
     async fn disconnect_peer(
         &self,
         _request: Request<DisconnectRequest>,
-    ) -> Result<Response<()>, Status> {
+    ) -> Result<Response<()>, tonic::Status> {
         todo!()
     }
 
-    async fn ban_peer(&self, _request: Request<BanRequest>) -> Result<Response<()>, Status> {
+    async fn ban_peer(&self, _request: Request<BanRequest>) -> Result<Response<()>, tonic::Status> {
         Ok(Response::new(()))
     }
 }
