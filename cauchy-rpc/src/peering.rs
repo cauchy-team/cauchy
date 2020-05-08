@@ -11,7 +11,7 @@ use tower_util::ServiceExt;
 use tracing::info;
 
 use common::*;
-use player::{peer, ArenaQuery};
+use player::ArenaQuery;
 
 use gen::peering_server::Peering;
 use gen::*;
@@ -26,8 +26,6 @@ impl<Pl> PeeringService<Pl> {
         PeeringService { player }
     }
 }
-
-// type PlayerArenaMetadata = Service<ArenaQuery<AllQuery<arena::GetMetadata>>>;
 
 #[tonic::async_trait]
 impl<Pl> Peering for PeeringService<Pl>

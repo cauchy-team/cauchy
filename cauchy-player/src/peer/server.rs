@@ -98,12 +98,12 @@ pub enum Error {
 impl<Pl> Service<Message> for Peer<Pl>
 where
     Pl: Clone + Send + 'static,
-    Pl: Service<GetStatus, Response = (Marker, Status), Error = MissingStatus>,
+    Pl: Service<GetStatus, Response = (Minisketch, Status), Error = MissingStatus>,
     <Pl as Service<GetStatus>>::Future: Send,
     Pl: Service<TransactionInv, Response = Transactions, Error = TransactionError>,
     <Pl as Service<TransactionInv>>::Future: Send,
-    Pl: Service<(Marker, Minisketch), Response = Transactions, Error = ReconcileError>,
-    <Pl as Service<(Marker, Minisketch)>>::Future: Send,
+    Pl: Service<Minisketch, Response = Transactions, Error = ReconcileError>,
+    <Pl as Service<Minisketch>>::Future: Send,
 {
     type Response = Option<Message>;
     type Error = Error;
@@ -122,7 +122,7 @@ where
             Poll::Pending => return Poll::Pending,
         }
 
-        match <Pl as Service<(Marker, Minisketch)>>::poll_ready(&mut self.player, cx) {
+        match <Pl as Service<Minisketch>>::poll_ready(&mut self.player, cx) {
             Poll::Ready(Ok(_)) => (),
             Poll::Ready(Err(err)) => return Poll::Ready(Err(Error::Reconcile(err))),
             Poll::Pending => return Poll::Pending,
@@ -163,14 +163,13 @@ where
                         .map_err(Error::Transaction)
                 }
                 Message::Reconcile(_minisketch) => {
-                    let marker = this
+                    let minisketch = this
                         .perception
                         .lock()
                         .await
                         .take()
                         .ok_or(Error::UnexpectedReconcile)?;
-                    let transactions: Result<Transactions, _> =
-                        this.player.call((marker, Minisketch)).await;
+                    let transactions: Result<Transactions, _> = this.player.call(minisketch).await;
                     transactions
                         .map(|ok| Some(Message::Transactions(ok)))
                         .map_err(Error::Reconcile)

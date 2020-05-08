@@ -15,7 +15,6 @@ player = { package = 'cauchy-player',  path = '../cauchy-player' }
 
 bytes = "0.5.4"
 dashmap = "3.11.1"
-evmap = "10.0.0"
 futures = "0.3.4"
 rand = "0.7.3"
 rayon = "1.3.0"

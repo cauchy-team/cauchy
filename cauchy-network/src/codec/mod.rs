@@ -117,8 +117,9 @@ mod tests {
         let mut buf = BytesMut::default();
         let mut codec = MessageCodec::default();
 
+        let minisketch = Bytes::from(vec![0; 32]);
         codec
-            .encode(Message::Reconcile(Minisketch), &mut buf)
+            .encode(Message::Reconcile(Minisketch(minisketch.clone())), &mut buf)
             .expect("encoding error");
 
         let result = codec
@@ -126,7 +127,7 @@ mod tests {
             .expect("decoding error")
             .expect("decoding incomplete");
 
-        assert_eq!(result, Message::Reconcile(Minisketch));
+        assert_eq!(result, Message::Reconcile(Minisketch(minisketch)));
 
         let result = codec.decode(&mut buf).expect("decoding error");
         assert_eq!(result, None);

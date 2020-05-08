@@ -162,6 +162,37 @@ impl TransactionsState {
 }
 
 #[derive(Default)]
+pub struct ReconcileState {
+    minisketch_len: Option<u32>,
+}
+
+impl ReconcileState {
+    fn decode_inner(minisketch_len: u32, src: &mut BytesMut) -> Option<Minisketch> {
+        let total_len = minisketch_len as usize * 32;
+        if src.remaining() < total_len {
+            None
+        } else {
+            let minisketch = src.split_to(total_len);
+            Some(Minisketch(minisketch.freeze()))
+        }
+    }
+
+    fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Minisketch>, DecodeError> {
+        if let Some(minisketch_len) = self.minisketch_len {
+            Ok(Self::decode_inner(minisketch_len, src))
+        } else {
+            if src.remaining() < 4 {
+                Ok(None)
+            } else {
+                let minisketch_len = src.get_u32();
+                self.minisketch_len = Some(minisketch_len);
+                Ok(Self::decode_inner(minisketch_len, src))
+            }
+        }
+    }
+}
+
+#[derive(Default)]
 pub struct TransactionInvState {
     n_tx_ids: Option<u32>,
 }
@@ -198,7 +229,7 @@ pub enum DecodeState {
     Type,
     Poll,
     Status(StatusState),
-    Reconcile,
+    Reconcile(ReconcileState),
     ReconcileResponse(TransactionsState),
     TransactionInv(TransactionInvState),
     Transaction(TransactionState),
@@ -234,7 +265,7 @@ impl MessageCodec {
         self.state = match src.get_u8() {
             0 => DecodeState::Poll,
             1 => DecodeState::Status(StatusState::default()),
-            2 => DecodeState::Reconcile,
+            2 => DecodeState::Reconcile(ReconcileState::default()),
             3 => DecodeState::ReconcileResponse(TransactionsState::default()),
             4 => DecodeState::Transaction(TransactionState::default()),
             5 => DecodeState::TransactionInv(TransactionInvState::default()),
@@ -271,11 +302,13 @@ impl Decoder for MessageCodec {
                     Message::Status(status)
                 })
             }),
-            DecodeState::Reconcile => {
+            DecodeState::Reconcile(inner_state) => inner_state.decode(src).map(|opt| {
                 trace!("decoding reconcile; {:?}", src);
-                self.state = DecodeState::Type;
-                Ok(Some(Message::Reconcile(Minisketch)))
-            }
+                opt.map(|minisketch| {
+                    self.state = DecodeState::Type;
+                    Message::Reconcile(minisketch)
+                })
+            }),
             DecodeState::ReconcileResponse(inner_state) => inner_state.decode(src).map(|opt| {
                 trace!("decoding reconcile response; {:?}", src);
                 opt.map(|txs| {

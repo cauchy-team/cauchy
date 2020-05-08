@@ -36,19 +36,23 @@ pub type SplitStream = futures_util::stream::SplitStream<FramedStream>;
 const DIGEST_LEN: usize = 32;
 
 #[derive(Clone)]
-pub struct MiningReport {
+pub struct StateSnapshot {
     pub oddsketch: Bytes,
     pub root: Bytes,
+    pub minisketch: Minisketch,
     pub best_nonce: Arc<AtomicU64>,
 }
 
-impl MiningReport {
-    fn to_status(&self) -> Status {
-        Status {
+impl StateSnapshot {
+    fn to_parts(&self) -> (Minisketch, Status) {
+        let status = Status {
             oddsketch: self.oddsketch.clone(),
             root: self.root.clone(),
             nonce: self.best_nonce.load(Ordering::SeqCst) as u64, // TODO: Fix
-        }
+        };
+
+        let minisketch = self.minisketch.clone();
+        (minisketch, status)
     }
 }
 
@@ -58,7 +62,7 @@ pub struct Player<A> {
     arena: A,
     metadata: Arc<Metadata>,
     mining_coordinator: MiningCoordinator,
-    mining_report: Arc<RwLock<MiningReport>>,
+    state_snapshot: Arc<RwLock<StateSnapshot>>,
     database: Database,
     _state_svc: (),
 }
@@ -142,6 +146,7 @@ where
         arena: A,
         mut mining_coordinator: MiningCoordinator,
         database: Database,
+        radius: usize,
     ) -> Self {
         // Collect metadata
         let start_time = std::time::SystemTime::now();
@@ -151,7 +156,8 @@ where
         });
 
         // TODO: Add pubkey
-        let oddsketch = Bytes::from(vec![1; DIGEST_LEN]);
+        let oddsketch = Bytes::from(vec![1; 4 * radius]);
+        let minisketch = Minisketch(Bytes::new());
         let root = Bytes::from(vec![0; DIGEST_LEN]);
         let site = miner::RawSite::default();
         let best_nonce = mining_coordinator
@@ -159,7 +165,8 @@ where
             .await
             .unwrap();
 
-        let mining_report = MiningReport {
+        let state_snapshot = StateSnapshot {
+            minisketch,
             oddsketch,
             root,
             best_nonce,
@@ -170,7 +177,7 @@ where
             mining_coordinator,
             database,
             _state_svc: (),
-            mining_report: Arc::new(RwLock::new(mining_report)),
+            state_snapshot: Arc::new(RwLock::new(state_snapshot)),
         }
     }
 
@@ -218,15 +225,16 @@ where
                     "{:?} won with {:?}",
                     addrs[winning_index], peer_entries[winning_index]
                 );
-                let _reconcile_query = DirectedQuery(addr, Reconcile(Minisketch));
-                // self.arena.clone().oneshot(reconcile_query).await;
+                let (minisketch, _) = self.state_snapshot.read().await.to_parts();
+                let reconcile_query = DirectedQuery(addr, Reconcile(minisketch));
+                self.arena.clone().oneshot(reconcile_query).await;
             }
         }
     }
 }
 
 impl<A> Service<GetStatus> for Player<A> {
-    type Response = (Marker, Status);
+    type Response = (Minisketch, Status);
     type Error = MissingStatus;
     type Future = FutResponse<Self::Response, Self::Error>;
 
@@ -235,12 +243,12 @@ impl<A> Service<GetStatus> for Player<A> {
     }
 
     fn call(&mut self, _: GetStatus) -> Self::Future {
-        let report_inner = self.mining_report.clone();
+        let report_inner = self.state_snapshot.clone();
         let fut = async move {
             let site = report_inner.read().await;
-            let status = site.to_status();
+            let (minisketch, status) = site.to_parts();
             info!("fetched status from player; {:?}", status);
-            Ok((Marker, status))
+            Ok((minisketch, status))
         };
         Box::pin(fut)
     }
@@ -287,7 +295,7 @@ pub enum ReconcileError {
     Database(DatabaseError),
 }
 
-impl<A> Service<(Marker, Minisketch)> for Player<A> {
+impl<A> Service<Minisketch> for Player<A> {
     type Response = Transactions;
     type Error = ReconcileError;
     type Future = FutResponse<Self::Response, Self::Error>;
@@ -296,7 +304,7 @@ impl<A> Service<(Marker, Minisketch)> for Player<A> {
         Poll::Ready(Ok(()))
     }
 
-    fn call(&mut self, (_marker, _minisketch): (Marker, Minisketch)) -> Self::Future {
+    fn call(&mut self, _minisketch: Minisketch) -> Self::Future {
         todo!()
     }
 }

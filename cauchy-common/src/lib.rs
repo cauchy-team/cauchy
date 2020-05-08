@@ -4,9 +4,6 @@ use std::{net::SocketAddr, time::SystemTime};
 
 pub use messages::*;
 
-#[derive(Debug)]
-pub struct Marker;
-
 pub struct GetStatus;
 
 #[derive(Debug)]

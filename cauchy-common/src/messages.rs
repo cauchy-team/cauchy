@@ -5,7 +5,7 @@ Network messages
 */
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Minisketch;
+pub struct Minisketch(pub Bytes);
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Status {

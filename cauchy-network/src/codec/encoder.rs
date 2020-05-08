@@ -38,10 +38,14 @@ impl Encoder<Message> for MessageCodec {
                 dst.put(status.root);
                 dst.put_u64(status.nonce);
             }
-            Message::Reconcile(_minisketch) => {
+            Message::Reconcile(minisketch) => {
+                let minisketch_raw = minisketch.0;
+                let minisketch_len = minisketch_raw.len() as u32;
                 dst.reserve(1);
 
                 dst.put_u8(2);
+                dst.put_u32(minisketch_len / 32); // This is safe
+                dst.put(minisketch_raw);
             }
             Message::ReconcileResponse(txs) => {
                 dst.reserve(1 + 4);
