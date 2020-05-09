@@ -23,10 +23,11 @@ use tokio_util::codec::Framed;
 use tower_buffer::Buffer;
 use tower_service::Service;
 use tower_util::ServiceExt;
-use tracing::info;
+use tracing::{info, trace};
 
 use common::*;
 use consensus::Entry;
+use crypto::{Minisketch as MinisketchCrypto, Oddsketch};
 use database::{Database, Error as DatabaseError};
 use miner::MiningCoordinator;
 use peer::{Peer, PeerClient};
@@ -46,7 +47,7 @@ pub struct StateSnapshot {
 impl StateSnapshot {
     fn to_parts(&self) -> (Minisketch, Status) {
         let status = Status {
-            oddsketch: self.oddsketch.clone(),
+            oddsketch: Bytes::from(self.oddsketch.clone()),
             root: self.root.clone(),
             nonce: self.best_nonce.load(Ordering::SeqCst) as u64, // TODO: Fix
         };
@@ -65,6 +66,7 @@ pub struct Player<A> {
     state_snapshot: Arc<RwLock<StateSnapshot>>,
     database: Database,
     _state_svc: (),
+    radius: u32,
 }
 
 pub trait PeerConstructor {
@@ -146,7 +148,7 @@ where
         arena: A,
         mut mining_coordinator: MiningCoordinator,
         database: Database,
-        radius: usize,
+        radius: u32,
     ) -> Self {
         // Collect metadata
         let start_time = std::time::SystemTime::now();
@@ -156,7 +158,7 @@ where
         });
 
         // TODO: Add pubkey
-        let oddsketch = Bytes::from(vec![1; 4 * radius]);
+        let oddsketch = Bytes::from(vec![0; 4 * radius as usize]);
         let minisketch = Minisketch(Bytes::new());
         let root = Bytes::from(vec![0; DIGEST_LEN]);
         let site = miner::RawSite::default();
@@ -178,6 +180,7 @@ where
             database,
             _state_svc: (),
             state_snapshot: Arc::new(RwLock::new(state_snapshot)),
+            radius,
         }
     }
 
@@ -330,6 +333,7 @@ where
     }
 }
 
+#[derive(Debug)]
 pub struct MempoolError;
 
 impl<A> Service<Transaction> for Player<A> {
@@ -337,26 +341,46 @@ impl<A> Service<Transaction> for Player<A> {
     type Error = MempoolError;
     type Future = FutResponse<Self::Response, Self::Error>;
 
-    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+    fn poll_ready(&mut self, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         Poll::Ready(Ok(()))
     }
 
-    fn call(&mut self, req: Transaction) -> Self::Future {
+    fn call(&mut self, tx: Transaction) -> Self::Future {
+        info!("broadcasting transaction; {:?}", tx);
         // TODO: Send to VM service
         // TODO: Get new root
 
-
         let state_snapshot = self.state_snapshot.clone();
+        let radius = self.radius as usize;
         let fut = async move {
             let StateSnapshot {
                 oddsketch,
                 minisketch,
                 best_nonce,
-                root
-            } = &*state_snapshot.write().await;
+                root,
+            } = &mut *state_snapshot.write().await;
 
+            // Deserialize oddsketch
+            let mut ms = MinisketchCrypto::try_new(64, 0, radius).unwrap(); // This is safe
+            ms.deserialize(&minisketch.0);
+
+            // Calculate short ID
+            let short_id = tx.get_short_id();
+
+            // Add to minisketch
+            ms.add(short_id);
+            let mut minisketch_raw = Vec::with_capacity(ms.serialized_size());
+            ms.serialize(&mut minisketch_raw).unwrap(); // This is safe
+
+            // Add to oddsketch
+            let oddsketch_raw = oddsketch.to_vec();
+            let mut new_oddsketch = Oddsketch::new(oddsketch_raw);
+            new_oddsketch.insert(short_id);
+            *oddsketch = Bytes::from(new_oddsketch.to_vec());
+            trace!("new oddsketch; {:?}", oddsketch);
+
+            Ok(())
         };
-        // Box::pin(fut)
-        todo!()
+        Box::pin(fut)
     }
 }

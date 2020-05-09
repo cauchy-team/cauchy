@@ -1,7 +1,7 @@
 use cauchy_consensus::*;
 use criterion::*;
-use rand::prelude::*;
 use num_bigint::BigUint;
+use rand::prelude::*;
 
 fn random() -> Entry {
     let mut rng = rand::thread_rng();

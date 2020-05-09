@@ -8,7 +8,7 @@ from time import time, sleep
 
 empty = empty_pb2.Empty()
 
-with grpc.insecure_channel('127.0.0.1:2081') as channel:
+with grpc.insecure_channel('127.0.0.1:2080') as channel:
     print("Info stub methods:")
     info_stub = info_pb2_grpc.InfoStub(channel)
 

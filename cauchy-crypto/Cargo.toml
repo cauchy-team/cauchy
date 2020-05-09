@@ -7,3 +7,4 @@ edition = "2018"
 [dependencies]
 blake3 = "0.3.3"
 minisketch-rs = "0.1.8"
+oddsketch = { git = "https://github.com/hlb8122/oddsketch-rs" }

@@ -1,4 +1,7 @@
+use std::convert::TryInto;
+
 use bytes::Bytes;
+use crypto::blake3;
 
 /*
 Network messages
@@ -18,6 +21,23 @@ pub struct Status {
 pub struct Transaction {
     pub timestamp: u64,
     pub binary: Bytes,
+}
+
+impl Transaction {
+    pub fn serialize(self) -> Vec<u8> {
+        let mut raw = self.timestamp.to_be_bytes().to_vec();
+        raw.extend(self.binary);
+        raw.to_vec()
+    }
+
+    pub fn get_id(&self) -> [u8; blake3::OUT_LEN] {
+        blake3::hash(&self.clone().serialize()).into()
+    }
+
+    pub fn get_short_id(&self) -> u64 {
+        let arr: [u8; 8] = self.get_id()[..8].try_into().unwrap();
+        u64::from_be_bytes(arr)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]

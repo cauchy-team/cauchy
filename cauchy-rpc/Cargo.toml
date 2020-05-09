@@ -10,13 +10,14 @@ miner = { package = 'cauchy-miner',  path = '../cauchy-miner' }
 network = { package = 'cauchy-network',  path = '../cauchy-network' }
 player = { package = 'cauchy-player',  path = '../cauchy-player' }
 
-futures-channel = "0.3.4"
-futures-core = "0.3.4"
-futures-util = "0.3.4"
+bytes = "0.5.4"
+futures-channel = "0.3.5"
+futures-core = "0.3.5"
+futures-util = "0.3.5"
 http = "0.2.1"
 prost = "0.6.1"
 prost-types = "0.6.1"
-tonic = { version = "0.2.0", features = ["tls", "transport"] }
+tonic = { version = "0.2.1", features = ["tls", "transport"] }
 tokio = { version = "0.2.20", features = ["tcp"] }
 tower-service = "0.3.0"
 tower-util = "0.3.1"

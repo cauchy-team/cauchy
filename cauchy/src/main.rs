@@ -31,7 +31,7 @@ async fn main() {
     // Construct player
     let database = database::Database::default();
     let bind_addr: SocketAddr = settings.bind.parse().expect("Failed to parse bind address");
-    const RADIUS: usize = 128;
+    const RADIUS: u32 = 128;
     let player = player::Player::new(bind_addr, arena, miner.clone(), database, RADIUS).await;
 
     // Create RPC
@@ -50,6 +50,7 @@ async fn main() {
             crypto::get_version(),
         )
         .mining_service(miner)
+        .transactions_service(player.clone())
         .start(rpc_addr);
 
     // Peer acceptor task

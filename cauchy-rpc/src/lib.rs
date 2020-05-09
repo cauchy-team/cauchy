@@ -1,6 +1,7 @@
 pub mod info;
 pub mod mining;
 pub mod peering;
+pub mod transactions;
 
 use std::{collections::HashMap, net::SocketAddr, sync::Arc, time::Duration};
 
@@ -14,6 +15,7 @@ use common::*;
 use player::ArenaQuery;
 
 use peering::gen::peering_server::PeeringServer;
+use transactions::gen::transactions_server::TransactionsServer;
 
 pub fn get_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
@@ -25,6 +27,7 @@ pub struct RPCBuilder<Pl> {
     info_service: Option<info::InfoService>,
     peering_service: Option<peering::PeeringService<Pl>>,
     mining_service: Option<mining::MiningService>,
+    transactions_service: Option<transactions::TransactionsService<Pl>>,
 }
 
 impl<Pl> Default for RPCBuilder<Pl> {
@@ -35,6 +38,7 @@ impl<Pl> Default for RPCBuilder<Pl> {
             info_service: None,
             peering_service: None,
             mining_service: None,
+            transactions_service: None,
         }
     }
 }
@@ -82,6 +86,12 @@ impl<Pl> RPCBuilder<Pl> {
         self.mining_service = Some(mining_service);
         self
     }
+
+    pub fn transactions_service(mut self, player: Pl) -> Self {
+        let tx_service = transactions::TransactionsService::new(player);
+        self.transactions_service = Some(tx_service);
+        self
+    }
 }
 
 impl<Pl> RPCBuilder<Pl>
@@ -98,6 +108,10 @@ where
     // Poll peer
     Pl: Service<ArenaQuery<DirectedQuery<PollStatus>>, Response = Status>,
     <Pl as Service<ArenaQuery<DirectedQuery<PollStatus>>>>::Future: Send,
+    // Broadcast transaction
+    Pl: Service<Transaction>,
+    <Pl as Service<Transaction>>::Future: Send,
+    <Pl as Service<Transaction>>::Error: std::fmt::Debug,
 {
     pub async fn start(self, addr: SocketAddr) -> Result<(), TransportError> {
         let mut builder = Server::builder().tcp_keepalive(self.keep_alive);
@@ -105,10 +119,14 @@ where
         let info_service = self.info_service.expect("info service is required");
         let peering_service = self.peering_service.expect("peer service is required");
         let mining_service = self.mining_service.expect("mining service is required");
+        let transactions_service = self
+            .transactions_service
+            .expect("transaction service is required");
         let router = builder
             .add_service(info_service.into_server())
             .add_service(PeeringServer::new(peering_service))
-            .add_service(mining_service.into_server());
+            .add_service(mining_service.into_server())
+            .add_service(TransactionsServer::new(transactions_service));
 
         if let Some(shutdown_signal) = self.shutdown_signal {
             router

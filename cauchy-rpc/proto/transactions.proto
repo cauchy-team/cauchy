@@ -1,0 +1,13 @@
+syntax = "proto3";
+package transactions;
+
+import "google/protobuf/empty.proto";
+
+message Transaction {
+    uint64 timestamp = 1;
+    bytes binary = 2;
+}
+
+service Transactions {
+    rpc BroadcastTransaction (Transaction) returns (google.protobuf.Empty);
+}
