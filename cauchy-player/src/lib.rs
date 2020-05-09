@@ -329,3 +329,34 @@ where
         self.arena.call(req)
     }
 }
+
+pub struct MempoolError;
+
+impl<A> Service<Transaction> for Player<A> {
+    type Response = ();
+    type Error = MempoolError;
+    type Future = FutResponse<Self::Response, Self::Error>;
+
+    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, req: Transaction) -> Self::Future {
+        // TODO: Send to VM service
+        // TODO: Get new root
+
+
+        let state_snapshot = self.state_snapshot.clone();
+        let fut = async move {
+            let StateSnapshot {
+                oddsketch,
+                minisketch,
+                best_nonce,
+                root
+            } = &*state_snapshot.write().await;
+
+        };
+        // Box::pin(fut)
+        todo!()
+    }
+}
