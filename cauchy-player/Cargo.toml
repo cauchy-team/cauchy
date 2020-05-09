@@ -7,6 +7,7 @@ edition = "2018"
 [dependencies]
 common = { package = 'cauchy-common', path = '../cauchy-common' }
 consensus = { package = 'cauchy-consensus',  path = '../cauchy-consensus' }
+crypto = { package = 'cauchy-crypto', path = '../cauchy-crypto' }
 database = { package = 'cauchy-database', path = '../cauchy-database' }
 miner = { package = 'cauchy-miner',  path = '../cauchy-miner' }
 network = { package = 'cauchy-network',  path = '../cauchy-network' }
@@ -16,6 +17,7 @@ futures-channel = "0.3.4"
 futures-core = "0.3.4"
 futures-sink = "0.3.4"
 futures-util = "0.3.4"
+minisketch-rs = "0.1.8"
 pin-project = "0.4.10"
 tokio = { version = "0.2.20", features = ["tcp", "time"] }
 tokio-util = "0.3.1"

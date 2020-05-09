@@ -1,7 +1,6 @@
 use cauchy_consensus::*;
 use criterion::*;
 use rand::prelude::*;
-use std::collections::HashMap;
 use num_bigint::BigUint;
 
 fn random() -> Entry {
