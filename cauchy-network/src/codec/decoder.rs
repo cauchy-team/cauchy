@@ -16,7 +16,7 @@ use tokio_util::codec::Decoder;
 use tracing::trace;
 
 use super::*;
-use common::*;
+use common::network::*;
 
 /*
 Decoding states

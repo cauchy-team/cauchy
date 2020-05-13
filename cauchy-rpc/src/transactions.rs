@@ -2,14 +2,13 @@ pub mod gen {
     tonic::include_proto!("transactions");
 }
 
-
 use bytes::Bytes;
 use tonic::{Request, Response};
 use tower_service::Service;
 use tower_util::ServiceExt;
 use tracing::info;
 
-use common::Transaction as TransactionMsg;
+use common::network::Transaction as TransactionMsg;
 
 use gen::transactions_server::Transactions;
 use gen::*;

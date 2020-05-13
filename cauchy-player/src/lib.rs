@@ -25,7 +25,7 @@ use tower_service::Service;
 use tower_util::ServiceExt;
 use tracing::{info, trace};
 
-use common::*;
+use common::{network::*, services::*, FutResponse};
 use consensus::Entry;
 use crypto::{Minisketch as MinisketchCrypto, Oddsketch};
 use database::{Database, Error as DatabaseError};
@@ -311,9 +311,6 @@ impl<A> Service<Minisketch> for Player<A> {
         todo!()
     }
 }
-
-/// Query arena
-pub struct ArenaQuery<T>(pub T);
 
 impl<A, T> Service<ArenaQuery<T>> for Player<A>
 where

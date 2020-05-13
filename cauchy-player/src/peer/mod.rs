@@ -11,7 +11,7 @@ use tokio::sync::{Mutex, RwLock};
 use tokio_tower::pipeline::Client;
 use tower_buffer::Buffer;
 
-use common::{Metadata, Minisketch};
+use common::{network::Minisketch, services::Metadata};
 use network::Message;
 
 pub type TowerError<T> = tokio_tower::Error<T, Message>;

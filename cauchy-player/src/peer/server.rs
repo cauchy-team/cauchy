@@ -12,7 +12,7 @@ use tower_service::Service;
 use tracing::info;
 
 use crate::*;
-use common::*;
+use common::{network::*, services::*};
 use network::{FramedStream, Message};
 
 pub type SplitStream = futures_util::stream::SplitStream<FramedStream>;

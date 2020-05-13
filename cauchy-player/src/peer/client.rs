@@ -1,6 +1,10 @@
 use std::{pin::Pin, sync::Arc};
 
-use common::{Status, Transactions};
+use common::{
+    network::{Status, Transactions},
+    services::*,
+    FutResponse,
+};
 use futures_channel::mpsc;
 use futures_core::{
     stream::Stream,
@@ -14,7 +18,6 @@ use tracing::info;
 use tower_service::Service;
 
 use super::*;
-use common::*;
 
 pub type ClientService =
     Buffer<Client<ClientTransport, TowerError<ClientTransport>, Message>, Message>;

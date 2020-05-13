@@ -8,7 +8,7 @@ const DIGEST_LEN: usize = 32;
 
 pub const MAGIC_BYTES: [u8; 4] = [1, 2, 3, 4];
 
-use common::*;
+use common::network::*;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Message {

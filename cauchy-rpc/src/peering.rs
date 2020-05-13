@@ -10,8 +10,7 @@ use tower_service::Service;
 use tower_util::ServiceExt;
 use tracing::info;
 
-use common::*;
-use player::ArenaQuery;
+use common::{services::*, network::Status};
 
 use gen::peering_server::Peering;
 use gen::*;

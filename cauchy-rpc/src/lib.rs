@@ -11,8 +11,10 @@ use tokio::net::TcpStream;
 use tonic::transport::{Error as TransportError, Server};
 use tower_service::Service;
 
-use common::*;
-use player::ArenaQuery;
+use common::{
+    network::{Status, Transaction},
+    services::*,
+};
 
 use peering::gen::peering_server::PeeringServer;
 use transactions::gen::transactions_server::TransactionsServer;

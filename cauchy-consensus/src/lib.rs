@@ -1,7 +1,7 @@
 use num_bigint::BigUint;
 use rayon::prelude::*;
 
-use common::Status;
+use common::network::Status;
 use crypto::blake3;
 
 pub const ODDSKETCH_LEN: usize = 32;
