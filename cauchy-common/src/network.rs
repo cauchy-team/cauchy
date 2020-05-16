@@ -1,7 +1,7 @@
 use std::convert::TryInto;
 
 use bytes::Bytes;
-use crypto::blake3;
+use crypto::{blake3, Minisketch as MinisketchCrypto, MinisketchError};
 
 /*
 Network messages
@@ -9,6 +9,14 @@ Network messages
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Minisketch(pub Bytes);
+
+impl Minisketch {
+    pub fn hydrate(self, radius: usize) -> Result<MinisketchCrypto, MinisketchError> {
+        let mut ms = MinisketchCrypto::try_new(64, 0, radius).unwrap(); // TODO: Make safe
+        ms.deserialize(&self.0[..radius * 8]);
+        Ok(ms)
+    }
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Status {

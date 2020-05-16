@@ -9,10 +9,10 @@ common = { package = 'cauchy-common', path = '../cauchy-common' }
 
 bytes = "0.5.4"
 futures = "0.3.5"
-tokio = { version = "0.2.20", features = ["tcp"] }
+tokio = { version = "0.2.21", features = ["tcp"] }
 tokio-util = { version = "0.3.1", features = ["codec"] }
-tracing = "0.1.13"
-pin-project = "0.4.13"
+tracing = "0.1.14"
+pin-project = "0.4.16"
 
 [dev-dependencies]
 rand = "0.7.3"

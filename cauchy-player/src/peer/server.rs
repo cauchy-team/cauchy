@@ -8,6 +8,7 @@ use futures_core::{
 use futures_sink::Sink;
 use futures_util::{sink::SinkExt, stream::StreamExt};
 use pin_project::pin_project;
+use tokio::sync::Mutex;
 use tower_service::Service;
 use tracing::info;
 
@@ -85,25 +86,38 @@ impl ServerTransport {
     }
 }
 
+#[derive(Clone)]
+pub struct Peer<Pl> {
+    pub player: Pl,
+    pub perception: Arc<Mutex<Option<Minisketch>>>,
+    pub response_sink: mpsc::Sender<Message>,
+    pub radius: usize,
+}
+
+pub trait PeerMetadata {
+    fn get_metadata(&self) -> Arc<Metadata>;
+    fn get_socket(&self) -> SocketAddr;
+}
+
 pub enum Error {
     ResponseSend(mpsc::SendError),
     MissingStatus(MissingStatus),
-    Reconcile(ReconcileError),
     Transaction(TransactionError),
     GetStatus(MissingStatus),
     TransactionInv(TransactionError),
+    Minisketch(MinisketchError),
     UnexpectedReconcile,
 }
 
 impl<Pl> Service<Message> for Peer<Pl>
 where
     Pl: Clone + Send + 'static,
+    // Get status from player
     Pl: Service<GetStatus, Response = (Minisketch, Status), Error = MissingStatus>,
     <Pl as Service<GetStatus>>::Future: Send,
+    // Get transaction from player
     Pl: Service<TransactionInv, Response = Transactions, Error = TransactionError>,
     <Pl as Service<TransactionInv>>::Future: Send,
-    Pl: Service<Minisketch, Response = Transactions, Error = ReconcileError>,
-    <Pl as Service<Minisketch>>::Future: Send,
 {
     type Response = Option<Message>;
     type Error = Error;
@@ -122,19 +136,13 @@ where
             Poll::Pending => return Poll::Pending,
         }
 
-        match <Pl as Service<Minisketch>>::poll_ready(&mut self.player, cx) {
-            Poll::Ready(Ok(_)) => (),
-            Poll::Ready(Err(err)) => return Poll::Ready(Err(Error::Reconcile(err))),
-            Poll::Pending => return Poll::Pending,
-        }
-
         Poll::Ready(Ok(()))
     }
 
     fn call(&mut self, message: Message) -> Self::Future {
         let mut this = self.clone();
         let fut = async move {
-            info!("received message; {:?}", message);
+            trace!("received message; {:?}", message);
             match message {
                 // Send responses
                 Message::ReconcileResponse(_)
@@ -147,13 +155,13 @@ where
                     .map_err(Error::ResponseSend)
                     .map(|_| None),
                 Message::Poll => {
-                    let (marker, status) = match this.player.call(GetStatus).await {
+                    let (minisketch, status) = match this.player.call(GetStatus).await {
                         Ok(ok) => ok,
                         Err(err) => return Err(Error::MissingStatus(err)),
                     };
-                    *this.perception.clone().lock().await = Some(marker);
+                    *this.perception.clone().lock().await = Some(minisketch);
 
-                    info!("fetched status; {:?}", status);
+                    trace!("fetched status; {:?}", status);
                     return Ok(Some(Message::Status(status)));
                 }
                 Message::TransactionInv(inv) => {
@@ -162,17 +170,30 @@ where
                         .map(|ok| Some(Message::Transactions(ok)))
                         .map_err(Error::Transaction)
                 }
-                Message::Reconcile(_minisketch) => {
-                    let minisketch = this
+                Message::Reconcile(minisketch) => {
+                    let mut perceived_minisketch = this
                         .perception
                         .lock()
                         .await
                         .take()
-                        .ok_or(Error::UnexpectedReconcile)?;
-                    let transactions: Result<Transactions, _> = this.player.call(minisketch).await;
-                    transactions
-                        .map(|ok| Some(Message::Transactions(ok)))
-                        .map_err(Error::Reconcile)
+                        .ok_or(Error::UnexpectedReconcile)?
+                        .hydrate(this.radius)
+                        .map_err(Error::Minisketch)?;
+                    let peer_minisketch =
+                        minisketch.hydrate(this.radius).map_err(Error::Minisketch)?;
+                    perceived_minisketch
+                        .merge(&peer_minisketch)
+                        .map_err(Error::Minisketch)?;
+
+                    let mut elements = vec![0; this.radius];
+                    let n_ele = perceived_minisketch
+                        .decode(&mut elements)
+                        .map_err(Error::Minisketch)?;
+                    info!("sending {} transactions", n_ele);
+
+                    let txs = Transactions { txs: Vec::new() };
+
+                    Ok(Some(Message::Transactions(txs)))
                 }
             }
         };

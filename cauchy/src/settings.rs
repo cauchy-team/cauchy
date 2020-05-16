@@ -36,6 +36,7 @@ pub fn app_init_and_matches<'a>() -> ArgMatches<'a> {
 pub struct Settings {
     pub bind: String,
     pub rpc_bind: String,
+    pub radius: usize,
 }
 
 impl Settings {
@@ -51,6 +52,7 @@ impl Settings {
         // Set default settings
         s.set_default("bind", "127.0.0.1:1080")?;
         s.set_default("rpc_bind", "0.0.0.0:2080")?;
+        s.set_default("radius", 128)?;
 
         // Load config from file
         let mut default_config = home_dir;

@@ -10,7 +10,7 @@ use tower_service::Service;
 use tower_util::ServiceExt;
 use tracing::info;
 
-use common::{services::*, network::Status};
+use common::{network::Status, services::*};
 
 use gen::peering_server::Peering;
 use gen::*;

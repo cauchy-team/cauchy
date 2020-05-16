@@ -1,6 +1,7 @@
 pub mod peer;
 
 use std::{
+    convert::TryInto,
     net::SocketAddr,
     sync::{
         atomic::{AtomicU64, Ordering},
@@ -10,6 +11,8 @@ use std::{
 };
 
 use bytes::Bytes;
+use crypto::blake3;
+use dashmap::DashMap;
 use futures_channel::mpsc;
 use futures_core::task::{Context, Poll};
 use futures_util::stream::StreamExt;
@@ -27,7 +30,7 @@ use tracing::{info, trace};
 
 use common::{network::*, services::*, FutResponse};
 use consensus::Entry;
-use crypto::{Minisketch as MinisketchCrypto, Oddsketch};
+use crypto::{Minisketch as MinisketchCrypto, MinisketchError, Oddsketch};
 use database::{Database, Error as DatabaseError};
 use miner::MiningCoordinator;
 use peer::{Peer, PeerClient};
@@ -40,7 +43,7 @@ const DIGEST_LEN: usize = 32;
 pub struct StateSnapshot {
     pub oddsketch: Bytes,
     pub root: Bytes,
-    pub minisketch: Minisketch,
+    pub minisketch: Bytes,
     pub best_nonce: Arc<AtomicU64>,
 }
 
@@ -53,7 +56,7 @@ impl StateSnapshot {
         };
 
         let minisketch = self.minisketch.clone();
-        (minisketch, status)
+        (Minisketch(minisketch), status)
     }
 }
 
@@ -65,8 +68,8 @@ pub struct Player<A> {
     mining_coordinator: MiningCoordinator,
     state_snapshot: Arc<RwLock<StateSnapshot>>,
     database: Database,
-    _state_svc: (),
-    radius: u32,
+    txs: Arc<DashMap<[u8; blake3::OUT_LEN], Transaction>>,
+    radius: usize,
 }
 
 pub trait PeerConstructor {
@@ -107,6 +110,7 @@ where
             player: self.clone(),
             perception: Default::default(),
             response_sink,
+            radius: self.radius,
         };
 
         let server = Server::new(server_transport, service);
@@ -148,7 +152,7 @@ where
         arena: A,
         mut mining_coordinator: MiningCoordinator,
         database: Database,
-        radius: u32,
+        radius: usize,
     ) -> Self {
         // Collect metadata
         let start_time = std::time::SystemTime::now();
@@ -159,7 +163,7 @@ where
 
         // TODO: Add pubkey
         let oddsketch = Bytes::from(vec![0; 4 * radius as usize]);
-        let minisketch = Minisketch(Bytes::new());
+        let minisketch = Bytes::from(vec![0; 8 * radius]);
         let root = Bytes::from(vec![0; DIGEST_LEN]);
         let site = miner::RawSite::default();
         let best_nonce = mining_coordinator
@@ -178,7 +182,7 @@ where
             metadata,
             mining_coordinator,
             database,
-            _state_svc: (),
+            txs: Default::default(),
             state_snapshot: Arc::new(RwLock::new(state_snapshot)),
             radius,
         }
@@ -219,14 +223,14 @@ where
             peer_entries.push(Entry::from_site(my_pubkey, player_status));
 
             let winning_index = consensus::calculate_winner(&peer_entries[..]).unwrap(); // TODO: Don't unwrap
-            info!("{} of {} wins", winning_index + 1, peer_entries.len());
             if peer_entries.len() == winning_index + 1 {
-                info!("player won with {:?}", peer_entries[winning_index]);
+                trace!("player won with {:?}", peer_entries[winning_index]);
             } else {
                 let addr = addrs[winning_index];
-                info!(
+                trace!(
                     "{:?} won with {:?}",
-                    addrs[winning_index], peer_entries[winning_index]
+                    addrs[winning_index],
+                    peer_entries[winning_index]
                 );
                 let (minisketch, _) = self.state_snapshot.read().await.to_parts();
                 let reconcile_query = DirectedQuery(addr, Reconcile(minisketch));
@@ -250,7 +254,7 @@ impl<A> Service<GetStatus> for Player<A> {
         let fut = async move {
             let site = report_inner.read().await;
             let (minisketch, status) = site.to_parts();
-            info!("fetched status from player; {:?}", status);
+            trace!("fetched status from player; {:?}", status);
             Ok((minisketch, status))
         };
         Box::pin(fut)
@@ -272,8 +276,20 @@ impl<A> Service<TransactionInv> for Player<A> {
         Poll::Ready(Ok(()))
     }
 
-    fn call(&mut self, _inv: TransactionInv) -> Self::Future {
-        unimplemented!()
+    fn call(&mut self, inv: TransactionInv) -> Self::Future {
+        let tx_ids = inv.tx_ids;
+        let txs: Vec<_> = tx_ids
+            .iter()
+            .filter_map(|tx_id| {
+                let tx_id_arr: [u8; 32] = tx_id[..].try_into().unwrap();
+                self.txs
+                    .get(&tx_id_arr)
+                    .map(move |pair| pair.value().clone())
+            })
+            .collect();
+        let transactions = Transactions { txs };
+
+        Box::pin(async move { Ok(transactions) })
     }
 }
 
@@ -290,25 +306,6 @@ impl<A> Service<GetMetadata> for Player<A> {
         let metadata = self.metadata.clone();
         let fut = async move { Ok(metadata) };
         Box::pin(fut)
-    }
-}
-
-#[derive(Debug)]
-pub enum ReconcileError {
-    Database(DatabaseError),
-}
-
-impl<A> Service<Minisketch> for Player<A> {
-    type Response = Transactions;
-    type Error = ReconcileError;
-    type Future = FutResponse<Self::Response, Self::Error>;
-
-    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        Poll::Ready(Ok(()))
-    }
-
-    fn call(&mut self, _minisketch: Minisketch) -> Self::Future {
-        todo!()
     }
 }
 
@@ -348,7 +345,7 @@ impl<A> Service<Transaction> for Player<A> {
         // TODO: Get new root
 
         let state_snapshot = self.state_snapshot.clone();
-        let radius = self.radius as usize;
+        let radius = self.radius;
         let fut = async move {
             let StateSnapshot {
                 oddsketch,
@@ -359,22 +356,25 @@ impl<A> Service<Transaction> for Player<A> {
 
             // Deserialize oddsketch
             let mut ms = MinisketchCrypto::try_new(64, 0, radius).unwrap(); // This is safe
-            ms.deserialize(&minisketch.0);
+            ms.deserialize(&minisketch);
 
             // Calculate short ID
             let short_id = tx.get_short_id();
 
             // Add to minisketch
             ms.add(short_id);
-            let mut minisketch_raw = Vec::with_capacity(ms.serialized_size());
+
+            let mut minisketch_raw = vec![0; ms.serialized_size()];
             ms.serialize(&mut minisketch_raw).unwrap(); // This is safe
+            info!("new oddsketch: {:?}", minisketch_raw);
+            *minisketch = Bytes::from(minisketch_raw);
 
             // Add to oddsketch
             let oddsketch_raw = oddsketch.to_vec();
             let mut new_oddsketch = Oddsketch::new(oddsketch_raw);
             new_oddsketch.insert(short_id);
             *oddsketch = Bytes::from(new_oddsketch.to_vec());
-            trace!("new oddsketch; {:?}", oddsketch);
+            info!("new oddsketch; {:?}", oddsketch);
 
             Ok(())
         };

@@ -1,4 +1,4 @@
-use std::{pin::Pin, sync::Arc};
+use std::{net::SocketAddr, pin::Pin, sync::Arc};
 
 use common::{
     network::{Status, Transactions},
@@ -13,12 +13,15 @@ use futures_core::{
 use futures_sink::Sink;
 use network::Message;
 use pin_project::pin_project;
-use tracing::info;
-
+use tokio::sync::RwLock;
+use tokio_tower::pipeline::Client;
+use tower_buffer::Buffer;
 use tower_service::Service;
+use tracing::info;
 
 use super::*;
 
+pub type TowerError<T> = tokio_tower::Error<T, Message>;
 pub type ClientService =
     Buffer<Client<ClientTransport, TowerError<ClientTransport>, Message>, Message>;
 #[derive(Clone)]

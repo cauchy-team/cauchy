@@ -31,8 +31,8 @@ async fn main() {
     // Construct player
     let database = database::Database::default();
     let bind_addr: SocketAddr = settings.bind.parse().expect("Failed to parse bind address");
-    const RADIUS: u32 = 128;
-    let player = player::Player::new(bind_addr, arena, miner.clone(), database, RADIUS).await;
+    let player =
+        player::Player::new(bind_addr, arena, miner.clone(), database, settings.radius).await;
 
     // Create RPC
     let rpc_addr = settings
@@ -58,7 +58,7 @@ async fn main() {
     tokio::spawn(rpc_server);
 
     // Peer polling task
-    let peer_poll = player.begin_heartbeat(3, 3_000);
+    let peer_poll = player.begin_heartbeat(3, 10_000);
     tokio::spawn(peer_poll);
 
     peer_acceptor.await;
