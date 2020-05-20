@@ -103,7 +103,7 @@ where
     <Pl as Service<ArenaQuery<AllQuery<GetMetadata>>>>::Error: std::fmt::Debug,
     <Pl as Service<ArenaQuery<AllQuery<GetMetadata>>>>::Future: Send,
     // Add new peers
-    Pl: Service<NewPeer>,
+    Pl: Service<NewPeer, Error = NewPeerError>,
     <Pl as Service<NewPeer>>::Response: Send,
     <Pl as Service<NewPeer>>::Future: Send,
     // Remove peers
@@ -114,9 +114,8 @@ where
     Pl: Service<ArenaQuery<DirectedQuery<PollStatus>>, Response = Status>,
     <Pl as Service<ArenaQuery<DirectedQuery<PollStatus>>>>::Future: Send,
     // Broadcast transaction
-    Pl: Service<Transaction>,
+    Pl: Service<Transaction, Error = MempoolError>,
     <Pl as Service<Transaction>>::Future: Send,
-    <Pl as Service<Transaction>>::Error: std::fmt::Debug,
 {
     pub async fn start(self, addr: SocketAddr) -> Result<(), TransportError> {
         let mut builder = Server::builder().tcp_keepalive(self.keep_alive);

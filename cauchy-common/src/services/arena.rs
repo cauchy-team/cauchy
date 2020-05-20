@@ -13,3 +13,6 @@ pub struct AllQuery<T: Sized>(pub T);
 /// Sample query message. Wraps an `PeerClient` message.
 #[derive(Clone)]
 pub struct SampleQuery<T>(pub T, pub usize);
+
+/// An error associated with inserting a peer into the arena.
+pub struct InsertPeerError;

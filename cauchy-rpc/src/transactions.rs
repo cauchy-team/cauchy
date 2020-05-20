@@ -30,7 +30,6 @@ where
     // Broadcast transaction
     Pl: Service<TransactionMsg>,
     <Pl as Service<TransactionMsg>>::Future: Send,
-    <Pl as Service<TransactionMsg>>::Error: std::fmt::Debug,
 {
     async fn broadcast_transaction(
         &self,
@@ -42,8 +41,11 @@ where
             binary: Bytes::from(transaction.binary),
         };
 
-        // TODO: Handle erro
-        self.player.clone().oneshot(tx_msg).await;
+        self.player
+            .clone()
+            .oneshot(tx_msg)
+            .await
+            .map_err(|_err| tonic::Status::unknown("todo"))?;
         Ok(Response::new(()))
     }
 }

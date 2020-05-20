@@ -27,7 +27,7 @@ impl Default for Arena {
 
 impl Service<(SocketAddr, PeerClient)> for Arena {
     type Response = ();
-    type Error = ();
+    type Error = InsertPeerError;
     type Future = FutResponse<Self::Response, Self::Error>;
 
     fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {

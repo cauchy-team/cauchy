@@ -3,6 +3,7 @@ use std::{net::SocketAddr, time::SystemTime};
 use tokio::net::TcpStream;
 
 use crate::network::Minisketch;
+use super::arena::InsertPeerError;
 
 /// Error representing missing status.
 #[derive(Debug)]
@@ -36,3 +37,12 @@ pub struct NewPeer(pub TcpStream);
 
 /// A remove peer request, sent to the `Player`.
 pub struct RemovePeer(pub SocketAddr);
+
+/// An error associated with inserting a transaction into the mempool.
+pub struct MempoolError;
+
+/// An error associated with adding a new peer.
+pub enum NewPeerError {
+    Network(std::io::Error),
+    Arena(InsertPeerError),
+}

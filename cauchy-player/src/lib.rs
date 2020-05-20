@@ -71,20 +71,15 @@ pub struct Player<A> {
 
 const PEER_BUFFER: usize = 128;
 
-pub enum NewPeerError<E> {
-    Network(std::io::Error),
-    Arena(E),
-}
-
 /// Add new peer.
-impl<A, E> Service<NewPeer> for Player<A>
+impl<A> Service<NewPeer> for Player<A>
 where
     A: Clone + Send + Sync + 'static,
-    A: Service<(SocketAddr, PeerClient), Error = E>,
+    A: Service<(SocketAddr, PeerClient), Error = InsertPeerError>,
     <A as Service<(SocketAddr, PeerClient)>>::Future: Send,
 {
     type Response = ();
-    type Error = NewPeerError<E>;
+    type Error = NewPeerError;
     type Future = FutResponse<Self::Response, Self::Error>;
 
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
@@ -97,9 +92,11 @@ where
             Err(err) => return Box::pin(async move { Err(NewPeerError::Network(err)) }),
         };
 
+        // Frame the TCP stream
         let codec = MessageCodec::default();
         let framed = Framed::new(tcp_stream, codec);
 
+        // Construct request and response channels
         let (response_sink, response_stream) = mpsc::channel(PEER_BUFFER);
         let (request_sink, request_stream) = mpsc::channel(PEER_BUFFER);
 
@@ -164,7 +161,7 @@ impl<A> Player<A>
 where
     A: Clone + Default + Send + Sync + 'static,
     // Arena peer constructor interface
-    A: Service<(SocketAddr, PeerClient)>,
+    A: Service<(SocketAddr, PeerClient), Error = InsertPeerError>,
     <A as Service<(SocketAddr, PeerClient)>>::Future: Send,
     // Poll interface
     A: Service<SampleQuery<PollStatus>>,
@@ -227,9 +224,8 @@ where
         // let mut boxed_listener = Box::pin(self.call_all(filtered_listener));
         let mut boxed_listener = Box::pin(filtered_listener);
 
-        let this = self.clone();
         while let Some(tcp_stream) = boxed_listener.next().await {
-            this.clone().oneshot(NewPeer(tcp_stream)).await;
+            self.clone().oneshot(NewPeer(tcp_stream)).await;
         }
     }
 
@@ -356,9 +352,6 @@ where
     }
 }
 
-#[derive(Debug)]
-pub struct MempoolError;
-
 impl<A> Service<Transaction> for Player<A> {
     type Response = ();
     type Error = MempoolError;
@@ -379,8 +372,7 @@ impl<A> Service<Transaction> for Player<A> {
             let StateSnapshot {
                 oddsketch,
                 minisketch,
-                best_nonce,
-                root,
+                ..
             } = &mut *state_snapshot.write().await;
 
             // Deserialize oddsketch

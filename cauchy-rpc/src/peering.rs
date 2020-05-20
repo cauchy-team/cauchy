@@ -35,7 +35,7 @@ where
     <Pl as Service<ArenaQuery<AllQuery<GetMetadata>>>>::Future: Send,
     <Pl as Service<ArenaQuery<AllQuery<GetMetadata>>>>::Error: std::fmt::Debug,
     // Add new peers
-    Pl: Service<NewPeer>,
+    Pl: Service<NewPeer, Error = NewPeerError<>>,
     <Pl as Service<NewPeer>>::Response: Send,
     <Pl as Service<NewPeer>>::Future: Send,
     // Remove peers
@@ -101,7 +101,10 @@ where
         let tcp_stream = TcpStream::connect(request.into_inner().address)
             .await
             .map_err(|err| tonic::Status::invalid_argument(err.to_string()))?;
-        self.player.clone().oneshot(NewPeer(tcp_stream)).await; // TODO: Handle
+        self.player.clone().oneshot(NewPeer(tcp_stream)).await.map_err(|err| match err {
+            NewPeerError::Arena(_err) => tonic::Status::failed_precondition("maximum peers"),
+            NewPeerError::Network(err) => tonic::Status::invalid_argument(err.to_string())
+        })?;
 
         Ok(Response::new(()))
     }
