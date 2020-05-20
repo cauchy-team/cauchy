@@ -23,50 +23,8 @@ use tracing::info;
 use super::*;
 
 pub type TowerError<T> = tokio_tower::Error<T, Message>;
-pub type ClientService =
-    Buffer<Client<ClientTransport, TowerError<ClientTransport>, Message>, Message>;
 
-#[derive(Clone)]
-pub struct PeerClient {
-    metadata: Arc<Metadata>,
-    client_svc: ClientService,
-    last_status: Arc<RwLock<Option<Status>>>,
-    terminator: AbortHandle,
-}
-
-impl Drop for PeerClient {
-    fn drop(&mut self) {
-        // Stop server on drop
-        self.terminator.abort();
-    }
-}
-
-impl PeerClient {
-    pub fn new(
-        metadata: Arc<Metadata>,
-        last_status: Arc<RwLock<Option<Status>>>,
-        client_svc: ClientService,
-        terminator: AbortHandle,
-    ) -> Self {
-        Self {
-            metadata,
-            client_svc,
-            last_status,
-            terminator,
-        }
-    }
-}
-
-impl PeerMetadata for PeerClient {
-    fn get_metadata(&self) -> Arc<Metadata> {
-        self.metadata.clone()
-    }
-
-    fn get_socket(&self) -> SocketAddr {
-        self.metadata.addr.clone()
-    }
-}
-
+/// Underlying transport for the `PeerClient`. Used to forward messages to a remote peer.
 #[pin_project]
 pub struct ClientTransport {
     /// Incoming responses.
@@ -78,6 +36,7 @@ pub struct ClientTransport {
 }
 
 impl ClientTransport {
+    /// Construct new  `ClientTransport` from request `Sender` and response `Receiver`.
     pub fn new(
         request_sink: mpsc::Sender<Message>,
         response_stream: mpsc::Receiver<Message>,
@@ -120,8 +79,65 @@ impl Sink<Message> for ClientTransport {
     }
 }
 
+/// A low-level peer client service constructed from the `ClientTransport`.
+///
+/// This is wrapped by the high level `PeerClient`.
+pub type ClientService =
+    Buffer<Client<ClientTransport, TowerError<ClientTransport>, Message>, Message>;
+
+/// A client responsible for communication with a specific peer. It handles request/responses and holds `Metadata` and the latest cached `Status`.
+///
+/// When dropped the `PeerServer` will stop execution.
+#[derive(Clone)]
+pub struct PeerClient {
+    metadata: Arc<Metadata>,
+    last_status: Arc<RwLock<Option<Status>>>,
+    client_svc: ClientService,
+    terminator: AbortHandle,
+}
+
+impl Drop for PeerClient {
+    fn drop(&mut self) {
+        // Stop server on drop
+        self.terminator.abort();
+    }
+}
+
+impl PeerClient {
+    /// Construct a new `PeerClient`.
+    pub fn new(
+        metadata: Arc<Metadata>,
+        last_status: Arc<RwLock<Option<Status>>>,
+        client_svc: ClientService,
+        terminator: AbortHandle,
+    ) -> Self {
+        Self {
+            metadata,
+            client_svc,
+            last_status,
+            terminator,
+        }
+    }
+}
+
+// TODO: Make this into a service?
+impl PeerMetadata for PeerClient {
+    /// Get the peers `Metadata`.
+    fn get_metadata(&self) -> Arc<Metadata> {
+        self.metadata.clone()
+    }
+
+    /// Get the peers `SocketAddr`.
+    fn get_socket(&self) -> SocketAddr {
+        self.metadata.addr.clone()
+    }
+}
+
+/// An error encountered while calling `PollStatus`.
 pub enum PollStatusError {
+    /// Peer responded with an unexpected response.
     UnexpectedResponse,
+    /// Server error.
     Tower(Box<dyn std::error::Error + Send + Sync>),
 }
 
@@ -157,8 +173,11 @@ impl Service<PollStatus> for PeerClient {
     }
 }
 
+/// An error encountered while calling `Reconcile`.
 pub enum ReconcileError {
+    /// Peer responded with an unexpected response.
     UnexpectedResponse,
+    /// Server error.
     Tower(Box<dyn std::error::Error + Send + Sync>),
 }
 
@@ -204,9 +223,6 @@ impl Service<GetStatus> for PeerClient {
         Box::pin(fut)
     }
 }
-
-#[derive(Debug)]
-pub struct MetadataError;
 
 impl Service<GetMetadata> for PeerClient {
     type Response = Arc<Metadata>;

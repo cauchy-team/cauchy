@@ -28,11 +28,11 @@ pub struct Metadata {
 #[derive(Clone)]
 pub struct GetMetadata;
 
-/// An `Arena` request, sent to the player. Wraps an `Arena` request.
+/// An `Arena` request, sent to the `Player`. Wraps an `Arena` request.
 pub struct ArenaQuery<T>(pub T);
 
-/// A new peer request, sent to the player.
+/// A new peer request, sent to the `Player`.
 pub struct NewPeer(pub TcpStream);
 
-/// A remove peer request, sent to the player.
+/// A remove peer request, sent to the `Player`.
 pub struct RemovePeer(pub SocketAddr);

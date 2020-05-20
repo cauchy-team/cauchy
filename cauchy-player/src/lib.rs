@@ -30,7 +30,7 @@ use consensus::Entry;
 use crypto::{Minisketch as MinisketchCrypto, MinisketchError, Oddsketch};
 use database::{Database, Error as DatabaseError};
 use miner::MiningCoordinator;
-use peer::{Peer, PeerClient};
+use peer::{PeerClient, PeerServer};
 
 pub type SplitStream = futures_util::stream::SplitStream<FramedStream>;
 
@@ -103,17 +103,21 @@ where
         let server_transport = peer::ServerTransport::new(framed, request_stream);
 
         // Peer service
-        let service = Peer {
+        let service = PeerServer {
             player: self.clone(),
             perception: Default::default(),
             response_sink,
             radius: self.radius,
         };
 
+        // Construct abortable server
         let server = Server::new(server_transport, service);
         let (server_abortable, terminator) = abortable(server);
+
+        // Spawn server
         tokio::spawn(server_abortable);
 
+        // Construct client
         let metadata = Arc::new(Metadata {
             start_time: SystemTime::now(),
             addr,
@@ -122,6 +126,7 @@ where
         let client_svc = Buffer::new(Client::new(client_transport), peer::BUFFER_SIZE);
         let client = PeerClient::new(metadata, Default::default(), client_svc, terminator);
 
+        // Add client to arena
         let arena = self.arena.clone();
         let fut = async move {
             arena.oneshot((addr, client)).await;
@@ -164,6 +169,7 @@ where
     <A as Service<SampleQuery<PollStatus>>>::Error: std::fmt::Debug,
     A: Service<DirectedQuery<Reconcile>>,
 {
+    /// Construct a new `Player`.
     pub async fn new(
         bind_addr: SocketAddr,
         arena: A,
@@ -205,6 +211,7 @@ where
         }
     }
 
+    /// Begin accepting new peers.
     pub async fn begin_acceptor(self) {
         // Listen for peers
         let mut listener = TcpListener::bind(self.metadata.addr)
@@ -222,12 +229,13 @@ where
         }
     }
 
+    /// Begin heartbeat execution.
     pub async fn begin_heartbeat(self, sample_size: usize, interval_ms: u64) {
+        info!("starting heartbeat");
         // Poll sample
         let mut timer = tokio::time::interval(Duration::from_millis(interval_ms));
         let query = SampleQuery(PollStatus, sample_size);
         while let Some(_) = timer.next().await {
-            info!("starting heartbeat");
             // Aggregate results
             let peer_statuses = self.arena.clone().oneshot(query.clone()).await.unwrap(); // TODO: Don't unwrap
             let (_marker, player_status) = self.clone().oneshot(GetStatus).await.unwrap(); // TODO: Don't unwrap

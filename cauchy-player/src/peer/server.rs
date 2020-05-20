@@ -16,8 +16,9 @@ use crate::*;
 use common::{network::*, services::*};
 use network::{FramedStream, Message};
 
-pub type SplitStream = futures_util::stream::SplitStream<FramedStream>;
+type SplitStream = futures_util::stream::SplitStream<FramedStream>;
 
+/// Underlying transport for the `PeerClient`. Used to forward messages to a remote peer.
 #[pin_project]
 pub struct ServerTransport {
     /// Incoming messages
@@ -87,7 +88,7 @@ impl ServerTransport {
 }
 
 #[derive(Clone)]
-pub struct Peer<Pl> {
+pub struct PeerServer<Pl> {
     pub player: Pl,
     pub perception: Arc<Mutex<Option<Minisketch>>>,
     pub response_sink: mpsc::Sender<Message>,
@@ -109,7 +110,7 @@ pub enum Error {
     UnexpectedReconcile,
 }
 
-impl<Pl> Service<Message> for Peer<Pl>
+impl<Pl> Service<Message> for PeerServer<Pl>
 where
     Pl: Clone + Send + 'static,
     // Get status from player
