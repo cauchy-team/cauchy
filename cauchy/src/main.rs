@@ -20,7 +20,7 @@ async fn main() {
     let matches = app_init_and_matches();
 
     // Collect settings
-    let settings = Settings::new(matches).expect("Failed to collect settings");
+    let settings = Settings::new(matches).expect("failed to collect settings");
 
     // Create miners
     let miner = miner::MiningCoordinator::new(1);
@@ -30,7 +30,7 @@ async fn main() {
 
     // Construct player
     let database = database::Database::default();
-    let bind_addr: SocketAddr = settings.bind.parse().expect("Failed to parse bind address");
+    let bind_addr: SocketAddr = settings.bind.parse().expect("failed to parse bind address");
     let player =
         player::Player::new(bind_addr, arena, miner.clone(), database, settings.radius).await;
 
@@ -38,7 +38,7 @@ async fn main() {
     let rpc_addr = settings
         .rpc_bind
         .parse()
-        .expect("Failed to parse rpc bind address");
+        .expect("failed to parse rpc bind address");
     let rpc_server = rpc::RPCBuilder::default()
         .peering_service(player.clone())
         .info_service(

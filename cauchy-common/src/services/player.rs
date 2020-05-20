@@ -4,30 +4,35 @@ use tokio::net::TcpStream;
 
 use crate::network::Minisketch;
 
+/// Error representing missing status.
+#[derive(Debug)]
+pub struct MissingStatus;
+
+/// A status request, sent to the `Player` or a `PeerClient`. This gets the cached local status.
 pub struct GetStatus;
 
-//// Poll a peers status.
+/// A status request, sent to a `PeerClient`. This refreshes and returns the cached local status.
 #[derive(Clone)]
 pub struct PollStatus;
 
+/// A reconciliation request, sent to a `PeerClient`. This initiates the reconciliation round-trip.
 pub struct Reconcile(pub Minisketch);
 
+/// A players or peers metadata.
 pub struct Metadata {
     pub start_time: SystemTime,
     pub addr: SocketAddr,
 }
 
-#[derive(Debug)]
-pub struct MissingStatus;
-
+/// A metadata request, sent to the `Player` or a `PeerClient`.
 #[derive(Clone)]
 pub struct GetMetadata;
 
-/// Query arena.
+/// An `Arena` request, sent to the player. Wraps an `Arena` request.
 pub struct ArenaQuery<T>(pub T);
 
-/// New peer.
+/// A new peer request, sent to the player.
 pub struct NewPeer(pub TcpStream);
 
-/// Disconnect peer.
+/// A remove peer request, sent to the player.
 pub struct RemovePeer(pub SocketAddr);
