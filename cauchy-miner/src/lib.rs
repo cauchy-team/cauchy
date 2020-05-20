@@ -18,6 +18,7 @@ pub type Digest = [u8; 32];
 
 pub const WORST_DIGEST: [u8; 32] = [0; 32];
 
+/// Get crate version.
 pub fn get_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }

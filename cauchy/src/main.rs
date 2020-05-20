@@ -4,6 +4,7 @@ use std::net::SocketAddr;
 
 use settings::*;
 
+/// Get crate version.
 pub fn get_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }

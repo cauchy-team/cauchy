@@ -6,6 +6,7 @@ use crypto::blake3;
 
 pub const ODDSKETCH_LEN: usize = 32;
 
+/// Get crate version.
 pub fn get_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }

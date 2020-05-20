@@ -18,6 +18,7 @@ use common::{
 use peering::gen::peering_server::PeeringServer;
 use transactions::gen::transactions_server::TransactionsServer;
 
+/// Get crate version.
 pub fn get_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
