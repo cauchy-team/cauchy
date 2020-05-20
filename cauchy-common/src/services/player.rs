@@ -2,8 +2,8 @@ use std::{net::SocketAddr, time::SystemTime};
 
 use tokio::net::TcpStream;
 
-use crate::network::Minisketch;
 use super::arena::InsertPeerError;
+use crate::network::Minisketch;
 
 /// Error representing missing status.
 #[derive(Debug)]

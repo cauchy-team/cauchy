@@ -75,7 +75,7 @@ const PEER_BUFFER: usize = 128;
 impl<A> Service<NewPeer> for Player<A>
 where
     A: Clone + Send + Sync + 'static,
-    A: Service<(SocketAddr, PeerClient), Error = InsertPeerError>,
+    A: Service<(SocketAddr, PeerClient), Response = (), Error = InsertPeerError>,
     <A as Service<(SocketAddr, PeerClient)>>::Future: Send,
 {
     type Response = ();
@@ -128,10 +128,12 @@ where
         let client = PeerClient::new(metadata, Default::default(), client_svc, terminator);
 
         // Add client to arena
-        let arena = self.arena.clone();
+        let mut arena = self.arena.clone();
         let fut = async move {
-            arena.oneshot((addr, client)).await;
-            Ok(())
+            arena
+                .call((addr, client))
+                .await
+                .map_err(NewPeerError::Arena)
         };
 
         Box::pin(fut)
@@ -161,7 +163,7 @@ impl<A> Player<A>
 where
     A: Clone + Default + Send + Sync + 'static,
     // Arena peer constructor interface
-    A: Service<(SocketAddr, PeerClient), Error = InsertPeerError>,
+    A: Service<(SocketAddr, PeerClient), Response = (), Error = InsertPeerError>,
     <A as Service<(SocketAddr, PeerClient)>>::Future: Send,
     // Poll interface
     A: Service<SampleQuery<PollStatus>>,
