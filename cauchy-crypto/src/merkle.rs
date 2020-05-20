@@ -1,5 +1,4 @@
 use digest::Digest;
-use rayon::prelude::*;
 use std::marker::PhantomData;
 
 #[derive(Default)]
@@ -23,7 +22,7 @@ impl<'a, HashT: Digest + Default> MerkleTree<'a, HashT> {
         let mut tree = Vec::new();
         while {
             data = data
-                .par_chunks_mut(2)
+                .chunks_mut(2)
                 .map(|c| {
                     c[0].extend(if c.len() > 1 {
                         c[1].clone()
@@ -50,16 +49,8 @@ impl<'a, HashT: Digest + Default> MerkleTree<'a, HashT> {
 
 #[cfg(test)]
 mod tests {
-    use crate::merkle::MerkleTree;
+    use super::*;
     use digest::Digest;
-    #[test]
-    fn test_merkle_sha256() {
-        build_and_validate(
-            MerkleTree::<sha2::Sha256>::new(),
-            1000,
-            "4f52a2051143520841633a6e53f1ad5948a584dcdbc8ea206d8008d1cfe104a9",
-        );
-    }
 
     #[test]
     fn test_merkle_blake() {
