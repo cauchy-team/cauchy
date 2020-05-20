@@ -29,7 +29,7 @@ impl Entry {
 }
 
 /// Calculate the winner among all entries
-pub fn calculate_winner<'a>(entries: &'a [Entry]) -> Option<usize> {
+pub fn calculate_winner(entries: &[Entry]) -> Option<usize> {
     entries
         .iter()
         .enumerate()
@@ -54,7 +54,7 @@ pub fn calculate_winner<'a>(entries: &'a [Entry]) -> Option<usize> {
 }
 
 /// Calculate the winner among all entries
-pub fn calculate_winner_par<'a>(entries: &'a [Entry]) -> Option<usize> {
+pub fn calculate_winner_par(entries: &[Entry]) -> Option<usize> {
     entries
         .par_iter()
         .enumerate()
