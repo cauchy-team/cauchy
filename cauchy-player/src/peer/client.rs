@@ -11,6 +11,7 @@ use futures_core::{
     task::{Context, Poll},
 };
 use futures_sink::Sink;
+use futures_util::future::AbortHandle;
 use network::Message;
 use pin_project::pin_project;
 use tokio::sync::RwLock;
@@ -24,11 +25,20 @@ use super::*;
 pub type TowerError<T> = tokio_tower::Error<T, Message>;
 pub type ClientService =
     Buffer<Client<ClientTransport, TowerError<ClientTransport>, Message>, Message>;
+
 #[derive(Clone)]
 pub struct PeerClient {
     metadata: Arc<Metadata>,
     client_svc: ClientService,
     last_status: Arc<RwLock<Option<Status>>>,
+    terminator: AbortHandle,
+}
+
+impl Drop for PeerClient {
+    fn drop(&mut self) {
+        // Stop server on drop
+        self.terminator.abort();
+    }
 }
 
 impl PeerClient {
@@ -36,11 +46,13 @@ impl PeerClient {
         metadata: Arc<Metadata>,
         last_status: Arc<RwLock<Option<Status>>>,
         client_svc: ClientService,
+        terminator: AbortHandle,
     ) -> Self {
         Self {
             metadata,
             client_svc,
             last_status,
+            terminator,
         }
     }
 }
@@ -57,10 +69,10 @@ impl PeerMetadata for PeerClient {
 
 #[pin_project]
 pub struct ClientTransport {
-    /// Incoming responses
+    /// Incoming responses.
     #[pin]
     sink: mpsc::Sender<Message>,
-    /// Outgoing requests
+    /// Outgoing requests.
     #[pin]
     stream: mpsc::Receiver<Message>,
 }

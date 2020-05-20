@@ -25,6 +25,7 @@ impl Default for Arena {
     }
 }
 
+/// Add peer to arena.
 impl Service<(SocketAddr, PeerClient)> for Arena {
     type Response = ();
     type Error = ();
@@ -37,6 +38,29 @@ impl Service<(SocketAddr, PeerClient)> for Arena {
     fn call(&mut self, (addr, client): (SocketAddr, PeerClient)) -> Self::Future {
         self.peers.insert(addr, client);
         Box::pin(async move { Ok(()) })
+    }
+}
+
+pub enum RemoveError {
+    NotFound,
+}
+
+/// Remove peer from arena.
+impl Service<RemovePeer> for Arena {
+    type Response = ();
+    type Error = RemoveError;
+    type Future = FutResponse<Self::Response, Self::Error>;
+
+    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, RemovePeer(addr): RemovePeer) -> Self::Future {
+        if self.peers.remove(&addr).is_none() {
+            Box::pin(async move { Err(RemoveError::NotFound) })
+        } else {
+            Box::pin(async move { Ok(()) })
+        }
     }
 }
 

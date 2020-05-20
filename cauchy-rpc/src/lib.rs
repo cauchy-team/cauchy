@@ -7,7 +7,6 @@ use std::{collections::HashMap, net::SocketAddr, sync::Arc, time::Duration};
 
 use futures_channel::oneshot;
 use futures_util::FutureExt;
-use tokio::net::TcpStream;
 use tonic::transport::{Error as TransportError, Server};
 use tower_service::Service;
 
@@ -107,6 +106,10 @@ where
     Pl: Service<NewPeer>,
     <Pl as Service<NewPeer>>::Response: Send,
     <Pl as Service<NewPeer>>::Future: Send,
+    // Remove peers
+    Pl: Service<RemovePeer>,
+    <Pl as Service<RemovePeer>>::Response: Send,
+    <Pl as Service<RemovePeer>>::Future: Send,
     // Poll peer
     Pl: Service<ArenaQuery<DirectedQuery<PollStatus>>, Response = Status>,
     <Pl as Service<ArenaQuery<DirectedQuery<PollStatus>>>>::Future: Send,

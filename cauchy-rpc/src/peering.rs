@@ -38,6 +38,10 @@ where
     Pl: Service<NewPeer>,
     <Pl as Service<NewPeer>>::Response: Send,
     <Pl as Service<NewPeer>>::Future: Send,
+    // Remove peers
+    Pl: Service<RemovePeer>,
+    <Pl as Service<RemovePeer>>::Response: Send,
+    <Pl as Service<RemovePeer>>::Future: Send,
     // Poll peer
     Pl: Service<ArenaQuery<DirectedQuery<PollStatus>>, Response = Status>,
     <Pl as Service<ArenaQuery<DirectedQuery<PollStatus>>>>::Future: Send,
@@ -104,9 +108,20 @@ where
 
     async fn disconnect_peer(
         &self,
-        _request: Request<DisconnectRequest>,
+        request: Request<DisconnectRequest>,
     ) -> Result<Response<()>, tonic::Status> {
-        todo!()
+        let socket_addr = request
+            .into_inner()
+            .address
+            .parse::<SocketAddr>()
+            .map_err(move |err| tonic::Status::invalid_argument(err.to_string()))?;
+
+        self.player
+            .clone()
+            .oneshot(RemovePeer(socket_addr))
+            .await
+            .map(|_| Response::new(()))
+            .map_err(|_| tonic::Status::not_found("peer not found"))
     }
 
     async fn ban_peer(&self, _request: Request<BanRequest>) -> Result<Response<()>, tonic::Status> {

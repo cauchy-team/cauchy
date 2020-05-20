@@ -28,3 +28,6 @@ pub struct ArenaQuery<T>(pub T);
 
 /// New peer.
 pub struct NewPeer(pub TcpStream);
+
+/// Disconnect peer.
+pub struct RemovePeer(pub SocketAddr);

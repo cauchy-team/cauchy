@@ -15,7 +15,7 @@ use crypto::blake3;
 use dashmap::DashMap;
 use futures_channel::mpsc;
 use futures_core::task::{Context, Poll};
-use futures_util::stream::StreamExt;
+use futures_util::{future::abortable, stream::StreamExt};
 use network::{codec::*, FramedStream};
 use tokio::{net::TcpListener, sync::RwLock};
 use tokio_tower::pipeline::{Client, Server};
@@ -71,6 +71,7 @@ pub struct Player<A> {
 
 const PEER_BUFFER: usize = 128;
 
+/// Add new peer.
 impl<A> Service<NewPeer> for Player<A>
 where
     A: Clone + Send + Sync + 'static,
@@ -98,7 +99,10 @@ where
         let (response_sink, response_stream) = mpsc::channel(PEER_BUFFER);
         let (request_sink, request_stream) = mpsc::channel(PEER_BUFFER);
 
+        // Server transport
         let server_transport = peer::ServerTransport::new(framed, request_stream);
+
+        // Peer service
         let service = Peer {
             player: self.clone(),
             perception: Default::default(),
@@ -107,7 +111,8 @@ where
         };
 
         let server = Server::new(server_transport, service);
-        tokio::spawn(server);
+        let (server_abortable, terminator) = abortable(server);
+        tokio::spawn(server_abortable);
 
         let metadata = Arc::new(Metadata {
             start_time: SystemTime::now(),
@@ -115,7 +120,7 @@ where
         });
         let client_transport = peer::ClientTransport::new(request_sink, response_stream);
         let client_svc = Buffer::new(Client::new(client_transport), peer::BUFFER_SIZE);
-        let client = PeerClient::new(metadata, Default::default(), client_svc);
+        let client = PeerClient::new(metadata, Default::default(), client_svc, terminator);
 
         let arena = self.arena.clone();
         let fut = async move {
@@ -124,6 +129,25 @@ where
         };
 
         Box::pin(fut)
+    }
+}
+
+/// Remove peer.
+impl<A> Service<RemovePeer> for Player<A>
+where
+    A: Service<RemovePeer, Response = ()>,
+    <A as Service<RemovePeer>>::Future: Send + 'static,
+{
+    type Response = ();
+    type Error = <A as Service<RemovePeer>>::Error;
+    type Future = FutResponse<Self::Response, Self::Error>;
+
+    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        self.arena.poll_ready(cx)
+    }
+
+    fn call(&mut self, request: RemovePeer) -> Self::Future {
+        Box::pin(self.arena.call(request))
     }
 }
 
