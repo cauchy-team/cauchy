@@ -6,7 +6,6 @@ use bytes::Bytes;
 use tonic::{Request, Response};
 use tower_service::Service;
 use tower_util::ServiceExt;
-use tracing::info;
 
 use common::network::Transaction as TransactionMsg;
 

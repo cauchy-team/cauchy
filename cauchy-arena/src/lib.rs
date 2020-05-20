@@ -25,13 +25,13 @@ impl Default for Arena {
     }
 }
 
-/// Add peer to arena.
 impl Service<(SocketAddr, PeerClient)> for Arena {
     type Response = ();
     type Error = ();
     type Future = FutResponse<Self::Response, Self::Error>;
 
     fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        // TODO: Reject on overcapacity
         Poll::Ready(Ok(()))
     }
 

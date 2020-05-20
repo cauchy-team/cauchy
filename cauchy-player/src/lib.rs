@@ -71,26 +71,30 @@ pub struct Player<A> {
 
 const PEER_BUFFER: usize = 128;
 
+pub enum NewPeerError<E> {
+    Network(std::io::Error),
+    Arena(E),
+}
+
 /// Add new peer.
-impl<A> Service<NewPeer> for Player<A>
+impl<A, E> Service<NewPeer> for Player<A>
 where
     A: Clone + Send + Sync + 'static,
-    A: Service<(SocketAddr, PeerClient)>,
+    A: Service<(SocketAddr, PeerClient), Error = E>,
     <A as Service<(SocketAddr, PeerClient)>>::Future: Send,
 {
     type Response = ();
-    type Error = std::io::Error;
+    type Error = NewPeerError<E>;
     type Future = FutResponse<Self::Response, Self::Error>;
 
-    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        // TODO
-        Poll::Ready(Ok(()))
+    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        self.arena.poll_ready(cx).map_err(NewPeerError::Arena)
     }
 
     fn call(&mut self, NewPeer(tcp_stream): NewPeer) -> Self::Future {
         let addr = match tcp_stream.peer_addr() {
             Ok(ok) => ok,
-            Err(err) => return Box::pin(async move { Err(err) }),
+            Err(err) => return Box::pin(async move { Err(NewPeerError::Network(err)) }),
         };
 
         let codec = MessageCodec::default();
