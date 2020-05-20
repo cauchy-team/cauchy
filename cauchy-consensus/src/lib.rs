@@ -10,6 +10,7 @@ pub fn get_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
 
+/// An entry into the consensus competition.
 #[derive(Clone, Debug)]
 pub struct Entry {
     pub oddsketch: Vec<u8>,
@@ -17,7 +18,10 @@ pub struct Entry {
 }
 
 impl Entry {
-    pub fn from_site(pubkey: &[u8], status: Status) -> Self {
+    /// Construct an `Entry` from a public key and status.
+    ///
+    /// The mass term is calculated by `H(pubkey || root || nonce )`.
+    pub fn from_status(pubkey: &[u8], status: Status) -> Self {
         let oddsketch = status.oddsketch.to_vec();
         let raw_nonce = status.nonce.to_be_bytes();
         let preimage = [pubkey, &status.root, &raw_nonce].concat();
@@ -28,7 +32,7 @@ impl Entry {
     }
 }
 
-/// Calculate the winner among all entries
+/// Calculate the winner among all entries.
 pub fn calculate_winner(entries: &[Entry]) -> Option<usize> {
     entries
         .iter()
@@ -53,7 +57,7 @@ pub fn calculate_winner(entries: &[Entry]) -> Option<usize> {
         .map(|(i, _)| i)
 }
 
-/// Calculate the winner among all entries
+/// Calculate the winner among all entries. Performed in parallel.
 pub fn calculate_winner_par(entries: &[Entry]) -> Option<usize> {
     entries
         .par_iter()

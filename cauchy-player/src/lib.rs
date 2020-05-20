@@ -233,11 +233,11 @@ where
             let (_marker, player_status) = self.clone().oneshot(GetStatus).await.unwrap(); // TODO: Don't unwrap
             let (addrs, mut peer_entries): (Vec<_>, Vec<_>) = peer_statuses
                 .into_iter()
-                .map(move |(addr, status)| (addr, Entry::from_site(&[], status)))
+                .map(move |(addr, status)| (addr, Entry::from_status(&[], status)))
                 .unzip();
 
             let my_pubkey = &[];
-            peer_entries.push(Entry::from_site(my_pubkey, player_status));
+            peer_entries.push(Entry::from_status(my_pubkey, player_status));
 
             let winning_index = consensus::calculate_winner(&peer_entries[..]).unwrap(); // TODO: Don't unwrap
             if peer_entries.len() == winning_index + 1 {

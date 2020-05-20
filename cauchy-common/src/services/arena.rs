@@ -1,10 +1,12 @@
 use std::net::SocketAddr;
 
 /// A `PeerClient` request, sent to the `Arena`. Wraps an `PeerClient` request.
+///
 /// Sent to a specific `PeerClient` indexed by a `SocketAddr`.
 pub struct DirectedQuery<T>(pub SocketAddr, pub T);
 
 /// A `PeerClient` request, sent to the `Arena`. Wraps an `PeerClient` request.
+///
 /// Sent to every `PeerClient`.
 pub struct AllQuery<T: Sized>(pub T);
 
