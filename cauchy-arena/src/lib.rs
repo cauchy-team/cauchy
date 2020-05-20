@@ -40,21 +40,6 @@ impl Service<(SocketAddr, PeerClient)> for Arena {
     }
 }
 
-#[derive(Debug)]
-pub enum NewPeerError {
-    Preexisting,
-    Socket(std::io::Error),
-}
-
-impl std::fmt::Display for NewPeerError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Preexisting => writeln!(f, "attempted to add preexisting peer"),
-            Self::Socket(err) => err.fmt(f),
-        }
-    }
-}
-
 impl<T> Service<SampleQuery<T>> for Arena
 where
     PeerClient: Service<T>,

@@ -35,9 +35,9 @@ where
     <Pl as Service<ArenaQuery<AllQuery<GetMetadata>>>>::Future: Send,
     <Pl as Service<ArenaQuery<AllQuery<GetMetadata>>>>::Error: std::fmt::Debug,
     // Add new peers
-    Pl: Service<TcpStream>,
-    <Pl as Service<TcpStream>>::Response: Send,
-    <Pl as Service<TcpStream>>::Future: Send,
+    Pl: Service<NewPeer>,
+    <Pl as Service<NewPeer>>::Response: Send,
+    <Pl as Service<NewPeer>>::Future: Send,
     // Poll peer
     Pl: Service<ArenaQuery<DirectedQuery<PollStatus>>, Response = Status>,
     <Pl as Service<ArenaQuery<DirectedQuery<PollStatus>>>>::Future: Send,
@@ -97,7 +97,7 @@ where
         let tcp_stream = TcpStream::connect(request.into_inner().address)
             .await
             .map_err(|err| tonic::Status::invalid_argument(err.to_string()))?;
-        self.player.clone().oneshot(tcp_stream).await; // TODO: Handle
+        self.player.clone().oneshot(NewPeer(tcp_stream)).await; // TODO: Handle
 
         Ok(Response::new(()))
     }

@@ -104,9 +104,9 @@ where
     <Pl as Service<ArenaQuery<AllQuery<GetMetadata>>>>::Error: std::fmt::Debug,
     <Pl as Service<ArenaQuery<AllQuery<GetMetadata>>>>::Future: Send,
     // Add new peers
-    Pl: Service<TcpStream>,
-    <Pl as Service<TcpStream>>::Response: Send,
-    <Pl as Service<TcpStream>>::Future: Send,
+    Pl: Service<NewPeer>,
+    <Pl as Service<NewPeer>>::Response: Send,
+    <Pl as Service<NewPeer>>::Future: Send,
     // Poll peer
     Pl: Service<ArenaQuery<DirectedQuery<PollStatus>>, Response = Status>,
     <Pl as Service<ArenaQuery<DirectedQuery<PollStatus>>>>::Future: Send,

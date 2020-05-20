@@ -1,5 +1,7 @@
 use std::{net::SocketAddr, time::SystemTime};
 
+use tokio::net::TcpStream;
+
 use crate::network::Minisketch;
 
 pub struct GetStatus;
@@ -21,5 +23,8 @@ pub struct MissingStatus;
 #[derive(Clone)]
 pub struct GetMetadata;
 
-/// Query arena
+/// Query arena.
 pub struct ArenaQuery<T>(pub T);
+
+/// New peer.
+pub struct NewPeer(pub TcpStream);

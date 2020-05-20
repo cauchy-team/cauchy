@@ -17,10 +17,7 @@ use futures_channel::mpsc;
 use futures_core::task::{Context, Poll};
 use futures_util::stream::StreamExt;
 use network::{codec::*, FramedStream};
-use tokio::{
-    net::{TcpListener, TcpStream},
-    sync::RwLock,
-};
+use tokio::{net::TcpListener, sync::RwLock};
 use tokio_tower::pipeline::{Client, Server};
 use tokio_util::codec::Framed;
 use tower_buffer::Buffer;
@@ -72,13 +69,9 @@ pub struct Player<A> {
     radius: usize,
 }
 
-pub trait PeerConstructor {
-    fn new(&self, tcp_stream: TcpStream) -> Result<PeerClient, std::io::Error>;
-}
-
 const PEER_BUFFER: usize = 128;
 
-impl<A> Service<TcpStream> for Player<A>
+impl<A> Service<NewPeer> for Player<A>
 where
     A: Clone + Send + Sync + 'static,
     A: Service<(SocketAddr, PeerClient)>,
@@ -93,7 +86,7 @@ where
         Poll::Ready(Ok(()))
     }
 
-    fn call(&mut self, tcp_stream: TcpStream) -> Self::Future {
+    fn call(&mut self, NewPeer(tcp_stream): NewPeer) -> Self::Future {
         let addr = match tcp_stream.peer_addr() {
             Ok(ok) => ok,
             Err(err) => return Box::pin(async move { Err(err) }),
@@ -201,7 +194,7 @@ where
 
         let this = self.clone();
         while let Some(tcp_stream) = boxed_listener.next().await {
-            this.clone().oneshot(tcp_stream).await;
+            this.clone().oneshot(NewPeer(tcp_stream)).await;
         }
     }
 
