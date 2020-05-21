@@ -25,11 +25,6 @@ pub extern "C" fn init() -> u32 {
 }
 
 fn main() {
-    let send_command = 0b0000_0000_0000_0001;
-    let do_stuff_command = 0b0000_0000_0000_0010;
-    let do_stuff_and_send = 0b0000_0000_0000_0011;
-
-    *(command_addressas *mut u32) = send_command;
 
 }
 

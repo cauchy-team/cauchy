@@ -80,7 +80,9 @@ impl<V: CauchyVM> Service<Transaction> for VMFactory<V> {
 
     fn call(&mut self, tx: Transaction) -> Self::Future {
         let new_script = Script::from(tx);
-        let fut = async move { V::initialize(&new_script).map_err(VMSpawnError::Spawn) };
+        let fut = async move {
+            tokio::task::spawn_blocking(move || V::initialize(&new_script).map_err(VMSpawnError::Spawn)).await.unwrap()
+        };
         Box::pin(fut)
     }
 }
