@@ -2,7 +2,7 @@ use std::{net::SocketAddr, time::SystemTime};
 
 use tokio::net::TcpStream;
 
-use super::arena::InsertPeerError;
+use super::{arena::InsertPeerError, vm::VMSpawnError};
 use crate::network::Minisketch;
 
 /// Error representing missing status.
@@ -39,7 +39,9 @@ pub struct NewPeer(pub TcpStream);
 pub struct RemovePeer(pub SocketAddr);
 
 /// An error associated with inserting a transaction into the mempool.
-pub struct MempoolError;
+pub enum MempoolError {
+    VM(VMSpawnError),
+}
 
 /// An error associated with adding a new peer.
 pub enum NewPeerError {

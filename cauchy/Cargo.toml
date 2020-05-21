@@ -13,6 +13,7 @@ miner = { package = 'cauchy-miner',  path = '../cauchy-miner' }
 network = { package = 'cauchy-network',  path = '../cauchy-network' }
 player = { package = 'cauchy-player',  path = '../cauchy-player' }
 rpc = { package = 'cauchy-rpc',  path = '../cauchy-rpc' }
+vm = { package = 'cauchy-vm',  path = '../cauchy-vm' }
 
 bytes = "0.5.4"
 clap = { version = "2.33.1", features = ["yaml"] }

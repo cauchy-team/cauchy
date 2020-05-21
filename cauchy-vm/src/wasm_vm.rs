@@ -1,34 +1,39 @@
-use super::{CauchyVM, Result, RetVal, Script, ScriptStatus, VmErr};
+use super::{CauchyVM, RetVal, Script, ScriptStatus};
+
+use common::services::VMError;
 use rust_wasm::values::Value;
 use rust_wasm::*;
 use std::convert::TryFrom;
 use std::io::Cursor;
 
+type Result<T> = std::result::Result<T, VMError>;
+
 impl TryFrom<Value> for ScriptStatus {
-    type Error = VmErr;
+    type Error = VMError;
     fn try_from(v: Value) -> Result<ScriptStatus> {
         match v {
             Value::I32(v) => Ok(ScriptStatus::try_from(v)?),
-            Value::I64(v) => Err(VmErr::BadStatus(v as u32)),
-            Value::F32(v) => Err(VmErr::BadStatus(v as u32)),
-            Value::F64(v) => Err(VmErr::BadStatus(v as u32)),
+            Value::I64(v) => Err(VMError::BadStatus(v as u32)),
+            Value::F32(v) => Err(VMError::BadStatus(v as u32)),
+            Value::F64(v) => Err(VMError::BadStatus(v as u32)),
         }
     }
 }
 
 impl TryFrom<u32> for ScriptStatus {
-    type Error = VmErr;
+    type Error = VMError;
     fn try_from(v: u32) -> Result<ScriptStatus> {
         use ScriptStatus::*;
         match v {
             0x0 => Ok(Ready),
             0xFF => Ok(Completed),
             0xDEADBEEF => Ok(Killed),
-            e => Err(VmErr::BadStatus(e)),
+            e => Err(VMError::BadStatus(e)),
         }
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct WasmVM {}
 
 impl WasmVM {
@@ -78,16 +83,16 @@ impl WasmVM {
                         script_status: ScriptStatus::try_from(v.0[0])?,
                     })
                 }
-                _ => Err(VmErr::Unknown),
+                _ => Err(VMError::Unknown),
             }
         } else {
-            Err(VmErr::Unknown)
+            Err(VMError::Unknown)
         }
     }
 }
 
 impl CauchyVM for WasmVM {
-    fn initialize(&mut self, script: &Script<'_>) -> Result<RetVal> {
+    fn initialize(script: &Script<'_>) -> Result<RetVal> {
         WasmVM::initialize(script)
     }
 

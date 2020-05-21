@@ -3,6 +3,7 @@ pub mod settings;
 use std::net::SocketAddr;
 
 use settings::*;
+use vm::{DefaultVM, VMFactory};
 
 /// Get crate version.
 pub fn get_version() -> String {
@@ -32,8 +33,14 @@ async fn main() {
     // Construct player
     let database = database::Database::default();
     let bind_addr: SocketAddr = settings.bind.parse().expect("failed to parse bind address");
-    let player =
-        player::Player::new(bind_addr, arena, miner.clone(), database, settings.radius).await;
+    let player = player::Player::<_, VMFactory<DefaultVM>>::new(
+        bind_addr,
+        arena,
+        miner.clone(),
+        database,
+        settings.radius,
+    )
+    .await;
 
     // Create RPC
     let rpc_addr = settings

@@ -59,7 +59,7 @@ impl StateSnapshot {
 
 /// Player service
 #[derive(Clone)]
-pub struct Player<A> {
+pub struct Player<A, V> {
     arena: A,
     metadata: Arc<Metadata>,
     mining_coordinator: MiningCoordinator,
@@ -67,14 +67,16 @@ pub struct Player<A> {
     database: Database,
     txs: Arc<DashMap<[u8; blake3::OUT_LEN], Transaction>>,
     radius: usize,
+    vm_factory: V,
 }
 
 const PEER_BUFFER: usize = 128;
 
 /// Add new peer.
-impl<A> Service<NewPeer> for Player<A>
+impl<A, V> Service<NewPeer> for Player<A, V>
 where
     A: Clone + Send + Sync + 'static,
+    V: Clone + Send + Sync + 'static,
     A: Service<(SocketAddr, PeerClient), Response = (), Error = InsertPeerError>,
     <A as Service<(SocketAddr, PeerClient)>>::Future: Send,
 {
@@ -141,7 +143,7 @@ where
 }
 
 /// Remove peer.
-impl<A> Service<RemovePeer> for Player<A>
+impl<A, V> Service<RemovePeer> for Player<A, V>
 where
     A: Service<RemovePeer, Response = ()>,
     <A as Service<RemovePeer>>::Future: Send + 'static,
@@ -159,9 +161,10 @@ where
     }
 }
 
-impl<A> Player<A>
+impl<A, V> Player<A, V>
 where
     A: Clone + Default + Send + Sync + 'static,
+    V: Clone + Default + Send + Sync + 'static,
     // Arena peer constructor interface
     A: Service<(SocketAddr, PeerClient), Response = (), Error = InsertPeerError>,
     <A as Service<(SocketAddr, PeerClient)>>::Future: Send,
@@ -203,6 +206,10 @@ where
             root,
             best_nonce,
         };
+
+        // Construct V
+        let vm_factory = V::default();
+
         Self {
             arena,
             metadata,
@@ -211,6 +218,7 @@ where
             txs: Default::default(),
             state_snapshot: Arc::new(RwLock::new(state_snapshot)),
             radius,
+            vm_factory,
         }
     }
 
@@ -267,7 +275,7 @@ where
     }
 }
 
-impl<A> Service<GetStatus> for Player<A> {
+impl<A, V> Service<GetStatus> for Player<A, V> {
     type Response = (Minisketch, Status);
     type Error = MissingStatus;
     type Future = FutResponse<Self::Response, Self::Error>;
@@ -293,7 +301,7 @@ pub enum TransactionError {
     Database(DatabaseError),
 }
 
-impl<A> Service<TransactionInv> for Player<A> {
+impl<A, V> Service<TransactionInv> for Player<A, V> {
     type Response = Transactions;
     type Error = TransactionError;
     type Future = FutResponse<Self::Response, Self::Error>;
@@ -320,7 +328,7 @@ impl<A> Service<TransactionInv> for Player<A> {
     }
 }
 
-impl<A> Service<GetMetadata> for Player<A> {
+impl<A, V> Service<GetMetadata> for Player<A, V> {
     type Response = Arc<Metadata>;
     type Error = ();
     type Future = FutResponse<Self::Response, Self::Error>;
@@ -336,7 +344,7 @@ impl<A> Service<GetMetadata> for Player<A> {
     }
 }
 
-impl<A, T> Service<ArenaQuery<T>> for Player<A>
+impl<A, T, V> Service<ArenaQuery<T>> for Player<A, V>
 where
     A: Service<T>,
     T: 'static + Send + Sized,
@@ -354,23 +362,35 @@ where
     }
 }
 
-impl<A> Service<Transaction> for Player<A> {
+impl<A, V> Service<Transaction> for Player<A, V>
+where
+    V: Clone + Send + 'static,
+    V: Service<Transaction, Error = VMSpawnError>,
+    <V as Service<Transaction>>::Future: Send,
+{
     type Response = ();
     type Error = MempoolError;
     type Future = FutResponse<Self::Response, Self::Error>;
 
-    fn poll_ready(&mut self, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        Poll::Ready(Ok(()))
+    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        self.vm_factory.poll_ready(cx).map_err(MempoolError::VM)
     }
 
     fn call(&mut self, tx: Transaction) -> Self::Future {
         info!("broadcasting transaction; {:?}", tx);
-        // TODO: Send to VM service
+        // TODO: Send to V service
+
+        // let vm = self.vm_constructor.call().await;
+        // tokio:spawn(vm.run());
+
         // TODO: Get new root
 
         let state_snapshot = self.state_snapshot.clone();
+        let mut vm_factory = self.vm_factory.clone();
         let radius = self.radius;
         let fut = async move {
+            vm_factory.call(tx.clone()).await;
+
             let StateSnapshot {
                 oddsketch,
                 minisketch,
