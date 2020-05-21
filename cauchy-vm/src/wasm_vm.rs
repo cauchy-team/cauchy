@@ -106,39 +106,3 @@ impl Default for WasmVM {
         WasmVM {}
     }
 }
-
-#[test]
-fn vm_test() {
-    use std::env;
-    use std::io::prelude::*;
-
-    let dir = env::current_dir().unwrap();
-    let dir = dir.join("contracts/contract_data/target/wasm32-unknown-unknown/release/");
-    let dir_exists = dir.exists();
-    let dir = dir.join("contract_data.wasm");
-    let file_exists = dir.exists();
-
-    if dir_exists && !file_exists {
-        // Handle the case of the directory existing, meaning the build went OK
-        // but the .wasm file does not due to the build environment or some other factor.
-        // NOTE: this is to address an issue seen with CI on github
-        println!("skipping test due to missing .wasm file");
-    } else {
-        let mut f = std::fs::File::open(dir.as_path()).expect("failed to open contract_data.wasm");
-        let mut script = Vec::new();
-        f.read_to_end(&mut script)
-            .expect("failed to read contract_data.wasm");
-
-        let aux_data = Some(vec![0xEF, 0xBE, 0xAD, 0xDE, 0x45]);
-
-        let script = Script {
-            func: None,
-            script,
-            aux_data,
-        };
-        let res = WasmVM::initialize(&script).unwrap();
-        assert_eq!(res.status(), &ScriptStatus::Killed);
-        let res = WasmVM::process_inbox(&script, None).unwrap();
-        assert_eq!(res.status(), &ScriptStatus::Completed);
-    }
-}
