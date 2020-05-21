@@ -24,10 +24,6 @@ pub extern "C" fn init() -> u32 {
     sum
 }
 
-fn main() {
-
-}
-
 #[no_mangle]
 pub extern "C" fn inbox() -> u32 {
     0xFF

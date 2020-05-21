@@ -1,0 +1,8 @@
+[package]
+name = "contract-data"
+version = "0.1.0"
+authors = ["Chris Novick <c.r.novick@pm.me>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib"]
