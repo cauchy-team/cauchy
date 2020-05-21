@@ -6,6 +6,7 @@ import "google/protobuf/empty.proto";
 message Transaction {
     uint64 timestamp = 1;
     bytes binary = 2;
+    bytes aux_data = 3;
 }
 
 service Transactions {

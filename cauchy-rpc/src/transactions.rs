@@ -39,6 +39,7 @@ where
         let tx_msg = TransactionMsg {
             timestamp: transaction.timestamp,
             binary: Bytes::from(transaction.binary),
+            aux_data: Bytes::from(transaction.aux_data),
         };
 
         self.player

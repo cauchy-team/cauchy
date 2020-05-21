@@ -65,6 +65,7 @@ mod tests {
         Transaction {
             timestamp,
             binary: Bytes::from(binary),
+            aux_data: Bytes::new(), // TODO: Fix this,
         }
     }
 

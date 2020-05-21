@@ -10,8 +10,8 @@ However, it is very possible that the compiler is compiling the problem away.
 
 use std::io;
 
-use bytes::buf::Buf;
 use bytes::BytesMut;
+use bytes::{buf::Buf, Bytes};
 use tokio_util::codec::Decoder;
 use tracing::trace;
 
@@ -92,7 +92,12 @@ impl TransactionState {
             None
         } else {
             let binary = src.split_to(binary_len_usize).freeze();
-            let tx = Transaction { timestamp, binary };
+            // TOOD: Fix
+            let tx = Transaction {
+                timestamp,
+                binary,
+                aux_data: Bytes::new(),
+            };
             Some(tx)
         }
     }

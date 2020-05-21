@@ -74,7 +74,7 @@ impl WasmVM {
                 script.aux_data.as_ref(),
                 message.as_ref(),
             );
-            println!("func '{}' returned {:X?}", func, res);
+            // println!("func '{}' returned {:X?}", func, res);
             match res {
                 Ok(v) if v.0.len() == 1 => {
                     save_store("some_txid", &store);

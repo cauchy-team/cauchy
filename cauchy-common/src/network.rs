@@ -29,6 +29,7 @@ pub struct Status {
 pub struct Transaction {
     pub timestamp: u64,
     pub binary: Bytes,
+    pub aux_data: Bytes,
 }
 
 impl Transaction {

@@ -22,7 +22,7 @@ impl<'a> From<Transaction> for Script<'a> {
         Script {
             func: None,
             script: tx.binary.to_vec(),
-            aux_data: None,
+            aux_data: Some(tx.aux_data.to_vec()),
         }
     }
 }

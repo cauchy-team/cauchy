@@ -15,10 +15,14 @@ with grpc.insecure_channel('127.0.0.1:2080') as channel:
     print("Loading transaction...")
     with open("contract_data.wasm", 'rb') as filehandle:
 
-        bytes = filehandle.read(1024*1024*1024)
+        binary = filehandle.read(1024*1024*1024)
 
         print("Broadcasting transaction...")
         # transaction = transactions_pb2.Transaction(timestamp=123, binary=b'hello')
-        transaction = transactions_pb2.Transaction(timestamp=123, binary=bytes)
-        transaction = transactions_stub.BroadcastTransaction(transaction)
-        print("Done")
+        start_time = time()
+        transaction = transactions_pb2.Transaction(
+            timestamp=123, binary=binary, aux_data=b"ABCD")
+        for _ in range(0, 10):
+            transactions_stub.BroadcastTransaction(transaction)
+        end_time = time()
+        print("Done in", (end_time - start_time) / 1_0, "seconds")
