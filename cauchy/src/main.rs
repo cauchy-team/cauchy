@@ -25,7 +25,7 @@ async fn main() {
     let settings = Settings::new(matches).expect("failed to collect settings");
 
     // Create miners
-    let miner = miner::MiningCoordinator::new(1);
+    let miner = miner::MiningCoordinator::new(settings.mining_threads);
 
     // Construct arena
     let arena: arena::Arena = arena::Arena::default();

@@ -43,7 +43,11 @@ where
     <Pl as Service<RemovePeer>>::Response: Send,
     <Pl as Service<RemovePeer>>::Future: Send,
     // Poll peer
-    Pl: Service<ArenaQuery<DirectedQuery<PollStatus>>, Response = Status>,
+    Pl: Service<
+        ArenaQuery<DirectedQuery<PollStatus>>,
+        Response = Status,
+        Error = DirectedError<PollStatusError>,
+    >,
     <Pl as Service<ArenaQuery<DirectedQuery<PollStatus>>>>::Future: Send,
 {
     async fn list_peers(
@@ -83,7 +87,7 @@ where
         let status = player
             .oneshot(query)
             .await
-            .map_err(|_| tonic::Status::unavailable("todo display for this error"))?;
+            .map_err(|err| tonic::Status::unavailable(err.to_string()))?;
 
         let poll_response = PollResponse {
             oddsketch: status.oddsketch.to_vec(),

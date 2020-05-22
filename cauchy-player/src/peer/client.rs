@@ -96,13 +96,6 @@ pub struct PeerClient {
     terminator: AbortHandle,
 }
 
-impl Drop for PeerClient {
-    fn drop(&mut self) {
-        // Stop server on drop
-        self.terminator.abort();
-    }
-}
-
 impl PeerClient {
     /// Construct a new `PeerClient`.
     pub fn new(
@@ -118,6 +111,10 @@ impl PeerClient {
             terminator,
         }
     }
+
+    pub fn shutdown(self) {
+        self.terminator.abort();
+    }
 }
 
 // TODO: Make this into a service?
@@ -131,14 +128,6 @@ impl PeerMetadata for PeerClient {
     fn get_socket(&self) -> SocketAddr {
         self.metadata.addr.clone()
     }
-}
-
-/// An error encountered while calling `PollStatus`.
-pub enum PollStatusError {
-    /// Peer responded with an unexpected response.
-    UnexpectedResponse,
-    /// Server error.
-    Tower(Box<dyn std::error::Error + Send + Sync>),
 }
 
 impl Service<PollStatus> for PeerClient {

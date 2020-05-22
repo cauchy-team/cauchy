@@ -112,7 +112,11 @@ where
     <Pl as Service<RemovePeer>>::Response: Send,
     <Pl as Service<RemovePeer>>::Future: Send,
     // Poll peer
-    Pl: Service<ArenaQuery<DirectedQuery<PollStatus>>, Response = Status>,
+    Pl: Service<
+        ArenaQuery<DirectedQuery<PollStatus>>,
+        Response = Status,
+        Error = DirectedError<PollStatusError>,
+    >,
     <Pl as Service<ArenaQuery<DirectedQuery<PollStatus>>>>::Future: Send,
     // Broadcast transaction
     Pl: Service<Transaction, Error = MempoolError>,

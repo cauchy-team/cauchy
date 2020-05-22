@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, time::SystemTime};
+use std::{fmt, net::SocketAddr, time::SystemTime};
 
 use tokio::net::TcpStream;
 
@@ -15,6 +15,23 @@ pub struct GetStatus;
 /// A status request, sent to a `PeerClient`. This refreshes and returns the cached local status.
 #[derive(Clone)]
 pub struct PollStatus;
+
+/// An error encountered while calling `PollStatus`.
+pub enum PollStatusError {
+    /// Peer responded with an unexpected response.
+    UnexpectedResponse,
+    /// Server error.
+    Tower(Box<dyn std::error::Error + Send + Sync>),
+}
+
+impl fmt::Display for PollStatusError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::UnexpectedResponse => writeln!(f, "unexpected response"),
+            Self::Tower(err) => err.fmt(f),
+        }
+    }
+}
 
 /// A reconciliation request, sent to a `PeerClient`. This initiates the reconciliation round-trip.
 pub struct Reconcile(pub Minisketch);

@@ -73,7 +73,7 @@ impl Encoder<Message> for MessageCodec {
                 let binary_len = tx.binary.len();
                 let aux_len = tx.aux_data.len();
                 dst.reserve(1 + 8 + 4 + binary_len + 4 + aux_len);
-                
+
                 dst.put_u8(4);
                 dst.put_u64(tx.timestamp);
                 dst.put_u32(binary_len as u32);

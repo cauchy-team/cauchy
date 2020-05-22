@@ -109,12 +109,12 @@ impl Service<GetNonce> for Miner {
 pub struct MiningCoordinator {
     pool: Arc<rayon::ThreadPool>,
     terminators: Arc<Mutex<Vec<Arc<AtomicBool>>>>,
-    n_workers: u32,
+    n_workers: u16,
     current_miner: Arc<RwLock<Option<Miner>>>,
 }
 
 impl MiningCoordinator {
-    pub fn new(n_workers: u32) -> Self {
+    pub fn new(n_workers: u16) -> Self {
         let pool = rayon::ThreadPoolBuilder::new()
             .num_threads(n_workers as usize)
             .build()
@@ -131,7 +131,7 @@ impl MiningCoordinator {
         (*self.current_miner.read().await).clone()
     }
 
-    pub fn n_workers(&self) -> u32 {
+    pub fn n_workers(&self) -> u16 {
         self.n_workers
     }
 }

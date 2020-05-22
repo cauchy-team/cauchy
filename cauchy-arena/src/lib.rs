@@ -56,10 +56,12 @@ impl Service<RemovePeer> for Arena {
     }
 
     fn call(&mut self, RemovePeer(addr): RemovePeer) -> Self::Future {
-        if self.peers.remove(&addr).is_none() {
-            Box::pin(async move { Err(RemoveError::NotFound) })
-        } else {
-            Box::pin(async move { Ok(()) })
+        match self.peers.remove(&addr) {
+            Some((_, some)) => {
+                some.shutdown();
+                Box::pin(async move { Ok(()) })
+            }
+            None => Box::pin(async move { Err(RemoveError::NotFound) }),
         }
     }
 }
@@ -110,12 +112,6 @@ where
         });
         Box::pin(fut)
     }
-}
-
-#[derive(Debug)]
-pub enum DirectedError<E> {
-    Internal(E),
-    Missing,
 }
 
 impl<T> Service<DirectedQuery<T>> for Arena

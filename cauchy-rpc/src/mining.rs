@@ -27,7 +27,7 @@ impl MiningService {
 #[tonic::async_trait]
 impl Mining for MiningService {
     async fn mining_info(&self, _: Request<()>) -> Result<Response<MiningInfoResponse>, Status> {
-        let n_workers = self.coordinator.n_workers();
+        let n_workers = self.coordinator.n_workers() as u32;
         let info = match self.coordinator.current_miner().await {
             Some(miner) => MiningInfoResponse {
                 n_workers,

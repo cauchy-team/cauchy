@@ -377,7 +377,7 @@ where
     }
 
     fn call(&mut self, tx: Transaction) -> Self::Future {
-        info!("broadcasting transaction; {:?}", tx);
+        info!("broadcasting transaction");
         // TODO: Send to V service
 
         // let vm = self.vm_constructor.call().await;

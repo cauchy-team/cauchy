@@ -29,6 +29,12 @@ pub fn app_init_and_matches<'a>() -> ArgMatches<'a> {
                 .help("Sets the RPC bind address")
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("mining-threads")
+                .long("mining-threads")
+                .help("Number of mining threads")
+                .takes_value(true),
+        )
         .get_matches()
 }
 
@@ -37,6 +43,7 @@ pub struct Settings {
     pub bind: String,
     pub rpc_bind: String,
     pub radius: usize,
+    pub mining_threads: u16,
 }
 
 impl Settings {
@@ -53,6 +60,7 @@ impl Settings {
         s.set_default("bind", "127.0.0.1:1080")?;
         s.set_default("rpc_bind", "0.0.0.0:2080")?;
         s.set_default("radius", 128)?;
+        s.set_default("mining_threads", 1)?;
 
         // Load config from file
         let mut default_config = home_dir;
@@ -67,6 +75,9 @@ impl Settings {
         }
         if let Some(rpc_bind) = matches.value_of("rpc-bind") {
             s.set("rpc_bind", rpc_bind)?;
+        }
+        if let Some(mining_threads) = matches.value_of("mining-threads") {
+            s.set("mining_threads", mining_threads)?;
         }
         s.try_into()
     }
