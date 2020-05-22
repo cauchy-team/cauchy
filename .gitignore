@@ -14,3 +14,5 @@ cauchy-vm/states/
 =======
 Cargo.lock
 >>>>>>> Stashed changes
+
+cauchy-vm/contracts/contract_data/target/
