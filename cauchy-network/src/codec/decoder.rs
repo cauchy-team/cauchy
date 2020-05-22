@@ -22,17 +22,17 @@ use common::network::*;
 Decoding states
 */
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct StatusState {
     oddsketch_len: Option<u16>,
 }
 
 impl StatusState {
-    fn decode_inner(oddsketch_len: u16, src: &mut BytesMut) -> Option<Status> {
-        if src.remaining() < (oddsketch_len + DIGEST_LEN as u16 + 8) as usize {
+    fn decode_inner(&mut self, src: &mut BytesMut) -> Option<Status> {
+        if src.remaining() < (self.oddsketch_len.unwrap() + DIGEST_LEN as u16 + 8) as usize {
             None
         } else {
-            let oddsketch = src.split_to(oddsketch_len as usize).freeze();
+            let oddsketch = src.split_to(self.oddsketch_len.unwrap() as usize).freeze();
             let root = src.split_to(DIGEST_LEN).freeze();
             let nonce = src.get_u64();
             let status = Status {
@@ -45,83 +45,106 @@ impl StatusState {
     }
 
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Status>, DecodeError> {
-        if let Some(oddsketch_len) = self.oddsketch_len {
-            Ok(Self::decode_inner(oddsketch_len, src))
-        } else {
+        if self.oddsketch_len.is_none() {
             if src.remaining() < 2 {
                 Ok(None)
             } else {
                 let oddsketch_len = src.get_u16();
                 self.oddsketch_len = Some(oddsketch_len);
 
-                Ok(Self::decode_inner(oddsketch_len, src))
+                Ok(self.decode_inner(src))
             }
+        } else {
+            Ok(self.decode_inner(src))
         }
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct TransactionState {
     timestamp: Option<u64>,
     binary_len: Option<u32>,
+    binary: Option<Bytes>,
+    aux_len: Option<u32>,
 }
 
 impl TransactionState {
-    fn decode_with_timestamp(
-        &mut self,
-        timestamp: u64,
-        src: &mut BytesMut,
-    ) -> Result<Option<Transaction>, DecodeError> {
+    fn decode_with_timestamp(&mut self, src: &mut BytesMut) -> Option<Transaction> {
         if src.remaining() < 4 {
-            Ok(None)
+            None
         } else {
             let binary_len = src.get_u32();
             self.binary_len = Some(binary_len);
 
-            if src.remaining() < binary_len as usize {
-                Ok(None)
-            } else {
-                Ok(Self::decode_with_all(timestamp, binary_len, src))
-            }
+            self.decode_with_binary_len(src)
         }
     }
 
-    fn decode_with_all(timestamp: u64, binary_len: u32, src: &mut BytesMut) -> Option<Transaction> {
-        let binary_len_usize = binary_len as usize;
+    fn decode_with_binary_len(&mut self, src: &mut BytesMut) -> Option<Transaction> {
+        let binary_len_usize = self.binary_len.unwrap() as usize;
         if src.remaining() < binary_len_usize {
             None
         } else {
             let binary = src.split_to(binary_len_usize).freeze();
+            self.binary = Some(binary);
+
+            self.decode_with_binary(src)
+        }
+    }
+
+    fn decode_with_binary(&mut self, src: &mut BytesMut) -> Option<Transaction> {
+        if src.remaining() < 4 {
+            None
+        } else {
+            let aux_len = src.get_u32();
+            self.aux_len = Some(aux_len);
+
+            self.decode_with_aux_len(src)
+        }
+    }
+
+    fn decode_with_aux_len(&mut self, src: &mut BytesMut) -> Option<Transaction> {
+        let aux_len_usize = self.aux_len.unwrap() as usize;
+        if src.remaining() < aux_len_usize {
+            None
+        } else {
+            let aux_data = src.split_to(aux_len_usize).freeze();
             // TOOD: Fix
             let tx = Transaction {
-                timestamp,
-                binary,
-                aux_data: Bytes::new(),
+                timestamp: self.timestamp.take().unwrap(),
+                binary: self.binary.take().unwrap(),
+                aux_data,
             };
             Some(tx)
         }
     }
 
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Transaction>, DecodeError> {
-        match (self.timestamp, self.binary_len) {
-            (None, _) => {
+        let tx = match (
+            self.timestamp.is_some(),
+            self.binary_len.is_some(),
+            self.binary.is_some(),
+            self.aux_len.is_some(),
+        ) {
+            (false, _, _, _) => {
                 if src.remaining() < 8 {
-                    Ok(None)
+                    None
                 } else {
                     let timestamp = src.get_u64();
                     self.timestamp = Some(timestamp);
-                    self.decode_with_timestamp(timestamp, src)
+                    self.decode_with_timestamp(src)
                 }
             }
-            (Some(timestamp), None) => self.decode_with_timestamp(timestamp, src),
-            (Some(timestamp), Some(binary_len)) => {
-                Ok(Self::decode_with_all(timestamp, binary_len, src))
-            }
-        }
+            (true, false, _, _) => self.decode_with_timestamp(src),
+            (_, true, false, _) => self.decode_with_binary_len(src),
+            (_, _, true, false) => self.decode_with_binary(src),
+            (_, _, _, true) => self.decode_with_aux_len(src),
+        };
+        Ok(tx)
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct TransactionsState {
     n_txs: Option<u32>,
     read: Option<Vec<Transaction>>,
@@ -129,13 +152,9 @@ pub struct TransactionsState {
 }
 
 impl TransactionsState {
-    fn decode_inner(
-        &mut self,
-        n_txs: u32,
-        src: &mut BytesMut,
-    ) -> Result<Option<Transactions>, DecodeError> {
+    fn decode_inner(&mut self, src: &mut BytesMut) -> Result<Option<Transactions>, DecodeError> {
         let n_read = self.read.as_ref().unwrap().len(); // This is safe
-        let n_remaining_txs = n_txs as usize - n_read;
+        let n_remaining_txs = self.n_txs.unwrap() as usize - n_read;
         for _ in 0..n_remaining_txs {
             match self.tx_state.decode(src)? {
                 Some(transaction) => {
@@ -151,9 +170,7 @@ impl TransactionsState {
     }
 
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Transactions>, DecodeError> {
-        if let Some(n_txs) = self.n_txs {
-            self.decode_inner(n_txs, src)
-        } else {
+        if self.n_txs.is_none() {
             if src.len() < 4 {
                 return Ok(None);
             }
@@ -161,19 +178,21 @@ impl TransactionsState {
             let n_txs = src.get_u32();
             self.n_txs = Some(n_txs);
             self.read = Some(vec![]);
-            self.decode_inner(n_txs, src)
+            self.decode_inner(src)
+        } else {
+            self.decode_inner(src)
         }
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct ReconcileState {
     minisketch_len: Option<u32>,
 }
 
 impl ReconcileState {
-    fn decode_inner(minisketch_len: u32, src: &mut BytesMut) -> Option<Minisketch> {
-        let total_len = minisketch_len as usize * 32;
+    fn decode_inner(&mut self, src: &mut BytesMut) -> Option<Minisketch> {
+        let total_len = self.minisketch_len.unwrap() as usize * 32;
         if src.remaining() < total_len {
             None
         } else {
@@ -183,21 +202,21 @@ impl ReconcileState {
     }
 
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Minisketch>, DecodeError> {
-        if let Some(minisketch_len) = self.minisketch_len {
-            Ok(Self::decode_inner(minisketch_len, src))
-        } else {
+        if self.minisketch_len.is_none() {
             if src.remaining() < 4 {
                 Ok(None)
             } else {
                 let minisketch_len = src.get_u32();
                 self.minisketch_len = Some(minisketch_len);
-                Ok(Self::decode_inner(minisketch_len, src))
+                Ok(self.decode_inner(src))
             }
+        } else {
+            Ok(self.decode_inner(src))
         }
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct TransactionInvState {
     n_tx_ids: Option<u32>,
 }
@@ -230,6 +249,7 @@ impl TransactionInvState {
     }
 }
 
+#[derive(Debug)]
 pub enum DecodeState {
     Type,
     Poll,
@@ -287,56 +307,51 @@ impl Decoder for MessageCodec {
     type Error = DecodeError;
 
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Message>, DecodeError> {
+        trace!("received raw message; {:?}", src);
+
         if let DecodeState::Type = self.state {
-            trace!("decoding type; {:?}", src);
             if self.decode_type(src)?.is_none() {
                 return Ok(None);
             }
         }
 
+        trace!("decoding message; {:?}", self.state);
         match &mut self.state {
             DecodeState::Poll => {
-                trace!("decoding poll; {:?}", src);
                 self.state = DecodeState::Type;
                 Ok(Some(Message::Poll))
             }
             DecodeState::Status(inner_state) => inner_state.decode(src).map(|opt| {
-                trace!("decoding status; {:?}", src);
                 opt.map(|status| {
                     self.state = DecodeState::Type;
                     Message::Status(status)
                 })
             }),
             DecodeState::Reconcile(inner_state) => inner_state.decode(src).map(|opt| {
-                trace!("decoding reconcile; {:?}", src);
                 opt.map(|minisketch| {
                     self.state = DecodeState::Type;
                     Message::Reconcile(minisketch)
                 })
             }),
             DecodeState::ReconcileResponse(inner_state) => inner_state.decode(src).map(|opt| {
-                trace!("decoding reconcile response; {:?}", src);
                 opt.map(|txs| {
                     self.state = DecodeState::Type;
                     Message::ReconcileResponse(txs)
                 })
             }),
             DecodeState::Transaction(inner_state) => inner_state.decode(src).map(|opt| {
-                trace!("decoding reconcile response; {:?}", src);
                 opt.map(|txs| {
                     self.state = DecodeState::Type;
                     Message::Transaction(txs)
                 })
             }),
             DecodeState::TransactionInv(inner_state) => inner_state.decode(src).map(|opt| {
-                trace!("decoding transaction inv; {:?}", src);
                 opt.map(|inv| {
                     self.state = DecodeState::Type;
                     Message::TransactionInv(inv)
                 })
             }),
             DecodeState::Transactions(inner_state) => inner_state.decode(src).map(|opt| {
-                trace!("decoding transactions; {:?}", src);
                 opt.map(|txs| {
                     self.state = DecodeState::Type;
                     Message::Transactions(txs)

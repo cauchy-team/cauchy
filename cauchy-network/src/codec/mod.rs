@@ -60,12 +60,14 @@ mod tests {
     fn generate_random_tx() -> Transaction {
         let mut rng = rand::thread_rng();
         let binary_len = 1024;
+        let aux_len = 512;
         let binary: Vec<u8> = (0..binary_len).map(|_| rng.gen()).collect();
+        let aux_data: Vec<u8> = (0..aux_len).map(|_| rng.gen()).collect();
         let timestamp = rng.gen();
         Transaction {
             timestamp,
             binary: Bytes::from(binary),
-            aux_data: Bytes::new(), // TODO: Fix this,
+            aux_data: Bytes::from(aux_data), // TODO: Fix this,
         }
     }
 

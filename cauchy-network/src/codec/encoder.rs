@@ -18,6 +18,18 @@ impl From<io::Error> for EncodingError {
     }
 }
 
+fn put_transaction(tx: Transaction, dst: &mut BytesMut) {
+    let binary_len = tx.binary.len();
+    let aux_len = tx.aux_data.len();
+    dst.reserve(8 + 4 + binary_len + 4 + aux_len);
+
+    dst.put_u64(tx.timestamp);
+    dst.put_u32(binary_len as u32);
+    dst.put(tx.binary);
+    dst.put_u32(aux_len as u32);
+    dst.put(tx.aux_data);
+}
+
 impl Encoder<Message> for MessageCodec {
     type Error = EncodingError;
 
@@ -54,22 +66,20 @@ impl Encoder<Message> for MessageCodec {
                 let n_txs = txs.txs.len();
                 dst.put_u32(n_txs as u32);
                 for tx in txs.txs {
-                    let binary_len = tx.binary.len();
-                    dst.reserve(8 + 4 + binary_len);
-
-                    dst.put_u64(tx.timestamp);
-                    dst.put_u32(binary_len as u32);
-                    dst.put(tx.binary);
+                    put_transaction(tx, dst);
                 }
             }
             Message::Transaction(tx) => {
                 let binary_len = tx.binary.len();
-                dst.reserve(1 + 8 + 4 + binary_len);
-
+                let aux_len = tx.aux_data.len();
+                dst.reserve(1 + 8 + 4 + binary_len + 4 + aux_len);
+                
                 dst.put_u8(4);
                 dst.put_u64(tx.timestamp);
                 dst.put_u32(binary_len as u32);
                 dst.put(tx.binary);
+                dst.put_u32(aux_len as u32);
+                dst.put(tx.aux_data);
             }
             Message::TransactionInv(tx_inv) => {
                 let n_tx_ids = tx_inv.tx_ids.len();
@@ -89,12 +99,7 @@ impl Encoder<Message> for MessageCodec {
                 let n_txs = txs.txs.len();
                 dst.put_u32(n_txs as u32);
                 for tx in txs.txs {
-                    let binary_len = tx.binary.len();
-                    dst.reserve(8 + 4 + binary_len);
-
-                    dst.put_u64(tx.timestamp);
-                    dst.put_u32(binary_len as u32);
-                    dst.put(tx.binary);
+                    put_transaction(tx, dst);
                 }
             }
         }
