@@ -13,7 +13,7 @@ player = { package = 'cauchy-player',  path = '../cauchy-player' }
 bytes = "0.5.4"
 futures-channel = "0.3.5"
 futures-core = "0.3.5"
-futures-util = "0.3.5"
+futures-util = "0.3.11"
 http = "0.2.1"
 prost = "0.6.1"
 prost-types = "0.6.1"
